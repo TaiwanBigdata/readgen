@@ -1,0 +1,20 @@
+# environments
+.env
+.env.*
+/.idea/
+/.vscode/
+__pycache__
+/env/
+/venv/
+/app/test*.py
+/backups/
+/caches/
+/secrets/
+/models/
+
+# jupyter
+.ipython
+.ipynb_checkpoints
+.jupyter
+.local
+/jupyterlab/
