@@ -3,7 +3,7 @@ import re
 import yaml
 from pathlib import Path
 from typing import Dict, List, Optional, Any
-from utils import paths
+from readgen.utils import paths
 
 
 class ReadmeGenerator:
