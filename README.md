@@ -27,7 +27,7 @@ $ readgen --f
 
 ## Project Configuration File
 Create a `readgen.toml` file in the project root:
-```toml
+````toml
 [Title]
 title = "Method to overwrite [Title], with support for spaces."
 content = "Content of the Title Block"
@@ -56,7 +56,9 @@ exclude_dirs = [".git", "venv", "__pycache__", ".venv", "env", "build", "dist"]
 # List the depth of directories, list all by default.
 "src/readgen" = 0  # directory = depth
 "utils" = 1  # directory = depth
-```
+````
+
+
 
 # Compatibility
 Supports Python 3.12 and above
