@@ -6,27 +6,30 @@ from readgen.generator import ReadmeGenerator
 
 
 def main() -> Optional[int]:
-    """CLI 主程式入口
+    """CLI main entry point
 
     Returns:
-        Optional[int]: 執行狀態碼，0 表示成功，1 表示失敗
+        Optional[int]: Execution status code, 0 indicates success, 1 indicates failure
     """
     parser = argparse.ArgumentParser(
         description="""
-在當前目錄產生 README.md 檔案。
+Generate a README.md file in the current directory.
 
-此工具會：
-1. 讀取 pyproject.toml 的專案資訊
-2. 讀取 readgen.toml 的自訂內容
-3. 掃描專案目錄結構
-4. 提取各資料夾的 docstring
-5. 產生標準化的 README.md
+This tool will:
+1. Read project information from pyproject.toml
+2. Read custom content from readgen.toml
+3. Scan the project directory structure
+4. Extract docstrings from `__init__.py` files in each folder
+5. Generate a standardized README.md
         """,
         epilog="Example: readgen -f -o README.md",
     )
 
     parser.add_argument(
-        "--force", "-f", action="store_true", help="若 README.md 已存在則強制覆寫"
+        "--force",
+        "-f",
+        action="store_true",
+        help="Force overwrite if README.md already exists",
     )
 
     parser.add_argument(
@@ -34,33 +37,35 @@ def main() -> Optional[int]:
         "-o",
         type=str,
         default="README.md",
-        help="指定輸出檔案名稱（預設：README.md）",
+        help="Specify the output file name (default: README.md)",
     )
 
     args = parser.parse_args()
 
     try:
-        # 檢查輸出檔案是否已存在
+        # Check if the output file already exists
         output_path = Path(args.output)
         if output_path.exists() and not args.force:
-            print(f"錯誤：{args.output} 已存在。使用 --force 參數來覆寫現有檔案。")
+            print(
+                f"Error: {args.output} already exists. Use the --force option to overwrite."
+            )
             return 1
 
-        # 建立產生器實例
+        # Create an instance of the generator
         generator = ReadmeGenerator()
 
-        # 產生 README 內容
+        # Generate README content
         readme_content = generator.generate()
 
-        # 寫入檔案
+        # Write to file
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(readme_content)
 
-        print(f"✨ 成功產生 {args.output}！")
+        print(f"✨ Successfully generated {args.output}!")
         return 0
 
     except Exception as e:
-        print(f"錯誤：{str(e)}")
+        print(f"Error: {str(e)}")
         return 1
 
 

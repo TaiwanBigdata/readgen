@@ -1,2 +1,2 @@
-"""這裡是放說明的地方.
+"""This folder is primarily used for storing commonly used utilities.
 """

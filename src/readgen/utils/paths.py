@@ -1,3 +1,3 @@
 from pathlib import Path
 
-ROOT_PATH = Path.cwd()  # 使用當前工作目錄
+ROOT_PATH = Path.cwd()  # Use the current working directory.

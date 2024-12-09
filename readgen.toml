@@ -3,13 +3,12 @@ title = "ReadGen (tbi-readgen)"
 content = "A simple yet powerful Python project README.md generator."
 
 [Features]
-title = "特色"
 content = """
-- Automatically scans project structure and generates directory descriptions
-- Reads project settings from project.yaml
-- Supports parsing .env.example to generate environment variable documentation
-- Automatically extracts docstrings from init.py files in each folder
-- Generates standardized Markdown format documentation
+1. Read project information from pyproject.toml
+2. Read custom content from readgen.toml
+3. Scan the project directory structure
+4. Extract docstrings from `__init__.py` files in each folder
+5. Generate a standardized README.md
 """
 
 
@@ -25,34 +24,53 @@ $ pipx install tbi-readgen
 
 [Usage]
 content = """
-## Basic Usage
+
+## CLI
 ```bash
 $ readgen
+
+# Overwrite README.md.
+$ readgen --f
 ```
 
 ## Project Configuration File
-Create a project.yaml file in the project root:
-```yaml
-project:
-    name: 'Project Name'
-    description: 'Project Description'
+Create a `readgen.toml` file in the project root:
+```toml
+[Title]
+title = "Method to overwrite [Title], with support for spaces."
+content = "Content of the Title Block"
 
-authors:
-    - name: 'Author Name'
-      email: 'email@example.com'
+[Markdown]
+content = \"\"\"
+## This is a markdown block
 
-dependencies:
-    - python >= 3.7
-    - PyYAML >= 6.0.1
+1. Read project information from pyproject.toml
+2. Read custom content from readgen.toml
+3. Scan the project directory structure
+4. Extract docstrings from `__init__.py` files in each folder
+5. Generate a standardized README.md
+
+```bash
+$ pipx install tbi-readgen
+```
+\"\"\"
+[settings]
+# The `settings` is a built-in method and will not be listed.
+
+# Exclude directories from scanning.
+exclude_dirs = [".git", "venv", "__pycache__", ".venv", "env", "build", "dist"]
+
+# List the depth of directories, list all by default.
+"src/readgen" = 0  # directory = depth
+"utils" = 1  # directory = depth
 ```
 """
 
 [Compatibility]
 content = """
-Supports Python 3.7 and above
+Supports Python 3.12 and above
 Compatible with Windows, macOS, and Linux
 """
 
 [settings]
-# 基本排除目錄
-exclude_dirs = [".git", "venv", "__pycache__", ".venv", "env", "build"]
+exclude_dirs = [".git", "venv", "__pycache__", ".venv", "env", "build", "dist"]

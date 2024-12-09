@@ -7,7 +7,7 @@ from readgen.config import ReadmeConfig
 
 
 class ReadmeGenerator:
-    """README 生成器"""
+    """README Generator"""
 
     def __init__(self):
         self.root_dir = paths.ROOT_PATH
@@ -15,7 +15,7 @@ class ReadmeGenerator:
         self.doc_pattern = re.compile(r'"""(.*?)"""', re.DOTALL)
 
     def _get_env_vars(self) -> List[Dict[str, str]]:
-        """從 .env.example 取得環境變數說明"""
+        """Retrieve environment variable descriptions from .env.example"""
         env_vars = []
         env_path = self.root_dir / ".env.example"
         if env_path.exists():
@@ -34,14 +34,14 @@ class ReadmeGenerator:
         return env_vars
 
     def _extract_docstring(self, content: str) -> Optional[str]:
-        """從 __init__.py 內容中提取 docstring"""
+        """Extract docstring from __init__.py content"""
         matches = self.doc_pattern.findall(content)
         if matches:
             return matches[0].strip()
         return None
 
     def _read_init_file(self, file_path: Path) -> Optional[Dict]:
-        """讀取並解析 __init__.py 檔案"""
+        """Read and parse the __init__.py file"""
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
@@ -54,7 +54,7 @@ class ReadmeGenerator:
         return None
 
     def _find_init_files(self) -> List[Dict]:
-        """尋找所有 __init__.py 檔案並提取文件"""
+        """Find all __init__.py files and extract documentation"""
         try:
             init_files = []
             exclude_dirs = self.config.settings["exclude_dirs"]
@@ -63,7 +63,7 @@ class ReadmeGenerator:
             for root, dirs, files in os.walk(self.root_dir):
                 root_path = Path(root)
 
-                # 檢查排除目錄
+                # Check for excluded directories
                 should_skip = any(
                     part.startswith(".") or part in exclude_dirs
                     for part in root_path.parts
@@ -72,13 +72,12 @@ class ReadmeGenerator:
                 if should_skip:
                     continue
 
-                # 檢查深度限制
+                # Check depth limits
                 if root_path != self.root_dir:
                     rel_path = str(root_path.relative_to(self.root_dir)).replace(
                         "\\", "/"
                     )
 
-                    # 檢查深度限制
                     for pattern, depth in depth_limits.items():
                         if rel_path.startswith(pattern):
                             remaining_path = rel_path[len(pattern) :].strip("/")
@@ -108,53 +107,55 @@ class ReadmeGenerator:
             return []
 
     def _generate_toc(self, docs: List[Dict]) -> str:
-        """產生目錄結構與模組說明"""
+        """Generate directory structure and module descriptions"""
         if not docs:
-            return "## 目錄結構與模組說明\n\n*尚無目錄資訊*"
+            return "## Directory Structure and Module Descriptions\n\n*No directory information available*"
 
         sections = ["# Directory Structure", ""]
-        project_name = self.root_dir.name  # 取得根目錄名稱
-        sections.append(f"* **{project_name}**")  # 將根目錄名稱作為第一層
+        project_name = self.root_dir.name  # Get the root directory name
+        sections.append(
+            f"* **{project_name}**"
+        )  # Use the root directory name as the top level
 
         for doc in docs:
             path = doc["path"].replace("\\", "/")
-            indent = "  " * (path.count("/") + 1)  # 增加一層縮排，作為子項目
+            indent = "  " * (path.count("/") + 1)  # Increase indentation for sub-items
 
             if doc["doc"]:
                 doc_text = doc["doc"].split("\n")[0].strip()
-                sections.append(f"{indent}* **{path}**：{doc_text}")
+                sections.append(f"{indent}* **{path}**: {doc_text}")
             else:
                 sections.append(f"{indent}* **{path}**")
 
         return "\n".join(sections)
 
     def generate(self) -> str:
-        """產生完整的 README 內容"""
+        """Generate the complete README content"""
         try:
             sections = []
 
-            # 處理所有內容區塊，全部使用 h1 標題
+            # Process all content blocks with h1 titles
             for section, block in self.config.content_blocks.items():
-                # 取得區塊內容，可能是字串或字典
+                # Retrieve block content, which may be a string or dictionary
                 if isinstance(block, dict):
-                    title = block.get("title", section)  # 如果有 title 就用 title
-                    content = block.get("content", "")  # 取得內容
+                    title = block.get("title", section)  # Use title if provided
+                    content = block.get("content", "")  # Retrieve content
                 else:
                     title = section
                     content = block
 
                 sections.extend(
-                    [f"# {title}", "", content, ""]  # 使用自定義標題或區塊名
+                    [f"# {title}", "", content, ""]  # Use custom title or section name
                 )
 
-            # 處理環境變數
+            # Process environment variables
             env_vars = self._get_env_vars()
             if env_vars:
                 sections.extend(
                     [
                         "# Environment Variables",
                         "",
-                        "| 變數名稱 | 說明 |",
+                        "| Variable Name | Description |",
                         "| --- | --- |",
                         *[
                             f"| {var['key']} | {var['description']} |"
@@ -164,17 +165,17 @@ class ReadmeGenerator:
                     ]
                 )
 
-            # 產生目錄結構（總是在最後）
+            # Generate directory structure (always last)
             docs = self._find_init_files()
             if docs:
                 toc_content = self._generate_toc(docs)
-                # 移除原本的 ## 標題，改為使用 # 標題
                 toc_content = toc_content.replace(
-                    "## 目錄結構與模組說明", "# Directory Structure"
+                    "## Directory Structure and Module Descriptions",
+                    "# Directory Structure",
                 )
                 sections.extend([toc_content, ""])
 
-            # 加入頁尾
+            # Add footer
             sections.extend(
                 ["---", "> This document was automatically generated by readgen."]
             )
@@ -183,7 +184,7 @@ class ReadmeGenerator:
 
         except Exception as e:
             print(f"Error generating README: {e}")
-            return "無法產生 README 內容。請檢查錯誤訊息。"
+            return "Unable to generate README content. Please check the error message."
 
 
 def main():

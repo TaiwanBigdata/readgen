@@ -5,12 +5,12 @@ import tomllib
 
 
 class ReadmeConfig:
-    """處理 readgen.toml 設定檔案
+    """Handles the readgen.toml configuration file
 
-    主要負責：
-    1. 讀取與解析 readgen.toml
-    2. 提供結構化的設定值
-    3. 處理變數替換
+    Responsibilities:
+    1. Read and parse readgen.toml
+    2. Provide structured configuration values
+    3. Handle variable substitution
     """
 
     SYSTEM_SECTION = "settings"
@@ -24,12 +24,12 @@ class ReadmeConfig:
         self._load_configs()
 
     def _load_configs(self) -> None:
-        """載入所有設定檔"""
+        """Load all configuration files"""
         self.project_data = self._read_project_file()
         self._load_readgen_config()
 
     def _read_project_file(self) -> Dict[str, Any]:
-        """讀取 pyproject.toml"""
+        """Read pyproject.toml"""
         project_path = self.root_path / "pyproject.toml"
         if project_path.exists():
             try:
@@ -40,13 +40,13 @@ class ReadmeConfig:
         return {}
 
     def _get_variable_value(self, var_path: str) -> str:
-        """從 project_data 取得變數值
+        """Retrieve variable value from project_data
 
         Args:
-            var_path: 變數路徑，例如 "project.name" 或 "project.authors[0].name"
+            var_path: The variable path, e.g., "project.name" or "project.authors[0].name"
         """
         try:
-            # 處理陣列索引
+            # Handle array indices
             parts = []
             for part in var_path.split("."):
                 if "[" in part:
@@ -55,7 +55,7 @@ class ReadmeConfig:
                 else:
                     parts.append(part)
 
-            # 遞迴取值
+            # Recursive value retrieval
             value = self.project_data
             for part in parts:
                 if isinstance(part, int):
@@ -67,7 +67,7 @@ class ReadmeConfig:
             return ""
 
     def _replace_variables(self, content: str) -> str:
-        """替換內容中的變數"""
+        """Replace variables in the content"""
 
         def replace(match):
             var_path = match.group(1)
@@ -76,7 +76,7 @@ class ReadmeConfig:
         return self.VARIABLE_PATTERN.sub(replace, content)
 
     def _load_readgen_config(self) -> None:
-        """讀取並解析 readgen.toml"""
+        """Read and parse readgen.toml"""
         config_path = self.root_path / "readgen.toml"
         if not config_path.exists():
             return
@@ -85,25 +85,25 @@ class ReadmeConfig:
             with open(config_path, "rb") as f:
                 config = tomllib.load(f)
 
-            # 處理系統設定
+            # Handle system settings
             if settings := config.pop(self.SYSTEM_SECTION, None):
                 self.settings["exclude_dirs"] = settings.get("exclude_dirs", [])
                 self.settings["depth_limits"] = {
                     k: v for k, v in settings.items() if k != "exclude_dirs"
                 }
 
-            # 處理內容區塊
+            # Handle content blocks
             self.content_blocks = {}
             for section, data in config.items():
                 if isinstance(data, dict):
-                    # 如果區塊包含 title 和 content
+                    # If the block contains title and content
                     block = {
                         "title": self._replace_variables(data.get("title", section)),
                         "content": self._replace_variables(data.get("content", "")),
                     }
                     self.content_blocks[section] = block
                 else:
-                    # 向後相容：直接使用字串內容
+                    # Backward compatibility: directly use string content
                     self.content_blocks[section] = self._replace_variables(data)
         except Exception as e:
             print(f"Error reading readgen.toml: {e}")

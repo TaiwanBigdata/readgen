@@ -1,16 +1,11 @@
 [project]
 name = "tbi-readgen"
-version = "0.0.1"
+version = "0.0.2"
 description = "A README generator for Python projects"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"
-authors = [
-    {name = "Albert Liu", email = "dreamerhyde@gmail.com"}
-]
-dependencies = [
-    "PyYAML>=6.0.1",
-]
+authors = [{ name = "Albert Liu", email = "dreamerhyde@gmail.com" }]
 
 [project.urls]
 Homepage = "https://github.com/TaiwanBigdata/readgen"
@@ -25,24 +20,3 @@ packages = ["src/readgen"]
 
 [project.scripts]
 readgen = "readgen.cli:main"
-
-
-[tool.readgen]
-# 基本排除目錄
-exclude_dirs = [
-    ".git",
-    "venv",
-    "__pycache__",
-    ".venv",
-    "env",
-    "dist",
-    "build"
-]
-
-# 目錄深度限制
-[tool.readgen.show_until_patterns]
-"app/web/bootstrap" = 0
-"app/web/static" = 0
-"backups" = 0
-"caches" = 0
-"secrets" = 0
