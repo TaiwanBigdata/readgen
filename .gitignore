@@ -1,9 +1,9 @@
 # environments
 .env
 .env.*
-/.idea/
-/.vscode/
 __pycache__
+/dist/
+/build/
 /env/
 /venv/
 /app/test*.py

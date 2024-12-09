@@ -1,5 +1,5 @@
 [project]
-name = "readgen"
+name = "tbi-readgen"
 version = "0.0.0"
 description = "A README generator for Python projects"
 readme = "README.md"
