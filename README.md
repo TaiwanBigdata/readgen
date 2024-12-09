@@ -46,6 +46,7 @@ content = """
 $ pipx install tbi-readgen
 ```
 """
+
 [settings]
 # The `settings` is a built-in method and will not be listed.
 
