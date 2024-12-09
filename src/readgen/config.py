@@ -70,13 +70,16 @@ class ReadmeConfig:
             return ""
 
     def _replace_variables(self, content: str) -> str:
-        """Replace variables in the content"""
+        """Replace variables but preserve escaped variables"""
 
         def replace(match):
-            var_path = match.group(1)
-            return self._get_variable_value(var_path)
+            start = match.start()
+            if start > 0 and content[start - 1] == "\\":
+                return match.group(0)
+            return self._get_variable_value(match.group(1))
 
-        return self.VARIABLE_PATTERN.sub(replace, content)
+        result = self.VARIABLE_PATTERN.sub(replace, content)
+        return result.replace("\\${", "${")
 
     def _load_readgen_config(self) -> None:
         """Read and parse readgen.toml"""

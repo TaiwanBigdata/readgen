@@ -1,8 +1,11 @@
-# ReadGen (tbi-readgen)
+# ReadGen (tbi-readgen 0.0.6)
 A simple yet powerful Python project README.md generator.
 # Features
 1. Read project information from pyproject.toml
 2. Read custom content from readgen.toml
+    - Support variable substitution from pyproject.toml
+    - Configure directory structure display with depth control
+    - Toggle directory section display
 3. Scan the project directory structure
 4. Extract docstrings from `__init__.py` files in each folder
 5. Generate a standardized README.md
@@ -35,7 +38,6 @@ content = "Content of the Title Block"
 [Markdown]
 content = """
 ## This is a markdown block
-
 1. Read project information from pyproject.toml
 2. Read custom content from readgen.toml
 3. Scan the project directory structure
@@ -45,6 +47,13 @@ content = """
 ```bash
 $ pipx install tbi-readgen
 ```
+"""
+
+[Variables]
+content = """
+Examples of variables from pyproject.toml:
+- Use ${project.version} to get the project version
+- Use ${project.name} to get the project name
 """
 
 
