@@ -1,5 +1,5 @@
 [ReadGen]
-title = "ReadGen (tbi-readgen)"
+title = "ReadGen (${project.name})"
 content = "A simple yet powerful Python project README.md generator."
 
 [Features]
@@ -55,18 +55,14 @@ $ pipx install tbi-readgen
 ```
 \"\"\"
 
-[settings]
-# The `settings` is a built-in method and will not be listed.
 
-# Exclude directories from scanning.
-exclude_dirs = [".git", "venv", "__pycache__", ".venv", "env", "build", "dist"]
-
-# List the depth of directories, list all by default.
-"src/readgen" = 0  # directory = depth
-"utils" = 1  # directory = depth
+[directory] # `directory` is a built-in method and will not be listed.
+title = "Directory Structure" # You can customize block names to override the default "Directory Structure."
+content = "123"
+enable = true # If `enable = false`, it won't list all directories or scan the init instructions.
+exclude_dirs = [".git", "venv", "__pycache__", ".venv", "env", "build", "dist"] # Exclude directories from scanning.
+depth_limits = { "root" = 1, "root/mother" = 2 } # List the depth of directories, list all by default.
 ````
-
-
 """
 
 [Compatibility]
@@ -75,5 +71,7 @@ Supports Python 3.12 and above
 Compatible with Windows, macOS, and Linux
 """
 
-[settings]
+
+[directory]
+enable = true
 exclude_dirs = [".git", "venv", "__pycache__", ".venv", "env", "build", "dist"]

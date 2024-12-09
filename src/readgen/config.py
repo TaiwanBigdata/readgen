@@ -13,13 +13,18 @@ class ReadmeConfig:
     3. Handle variable substitution
     """
 
-    SYSTEM_SECTION = "settings"
     VARIABLE_PATTERN = re.compile(r"\${([^}]+)}")
 
     def __init__(self, root_path: Path):
         self.root_path = root_path
         self.content_blocks: Dict[str, str] = {}
-        self.settings = {"exclude_dirs": [], "depth_limits": {}}
+        self.directory = {
+            "enable": True,
+            "title": "Directory Structure",
+            "content": "",
+            "exclude_dirs": set(),
+            "depth_limits": {},
+        }
         self.project_data: Dict[str, Any] = {}
         self._load_configs()
 
@@ -46,7 +51,6 @@ class ReadmeConfig:
             var_path: The variable path, e.g., "project.name" or "project.authors[0].name"
         """
         try:
-            # Handle array indices
             parts = []
             for part in var_path.split("."):
                 if "[" in part:
@@ -55,7 +59,6 @@ class ReadmeConfig:
                 else:
                     parts.append(part)
 
-            # Recursive value retrieval
             value = self.project_data
             for part in parts:
                 if isinstance(part, int):
@@ -85,25 +88,23 @@ class ReadmeConfig:
             with open(config_path, "rb") as f:
                 config = tomllib.load(f)
 
-            # Handle system settings
-            if settings := config.pop(self.SYSTEM_SECTION, None):
-                self.settings["exclude_dirs"] = settings.get("exclude_dirs", [])
-                self.settings["depth_limits"] = {
-                    k: v for k, v in settings.items() if k != "exclude_dirs"
-                }
+            # Handle directory settings
+            if directory_config := config.pop("directory", None):
+                self.directory.update(directory_config)
+                self.directory["exclude_dirs"] = set(
+                    directory_config.get("exclude_dirs", [])
+                )
 
             # Handle content blocks
             self.content_blocks = {}
             for section, data in config.items():
                 if isinstance(data, dict):
-                    # If the block contains title and content
                     block = {
                         "title": self._replace_variables(data.get("title", section)),
                         "content": self._replace_variables(data.get("content", "")),
                     }
                     self.content_blocks[section] = block
                 else:
-                    # Backward compatibility: directly use string content
                     self.content_blocks[section] = self._replace_variables(data)
         except Exception as e:
             print(f"Error reading readgen.toml: {e}")

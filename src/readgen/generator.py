@@ -54,39 +54,53 @@ class ReadmeGenerator:
         return None
 
     def _find_init_files(self) -> List[Dict]:
-        """Find all __init__.py files and extract documentation"""
         try:
             init_files = []
-            exclude_dirs = self.config.settings["exclude_dirs"]
-            depth_limits = self.config.settings["depth_limits"]
+            if not self.config.directory["enable"]:
+                return []
+
+            exclude_dirs = self.config.directory["exclude_dirs"]
+            depth_limits = self.config.directory["depth_limits"]
 
             for root, dirs, files in os.walk(self.root_dir):
                 root_path = Path(root)
 
-                # Check for excluded directories
-                should_skip = any(
+                if any(
                     part.startswith(".") or part in exclude_dirs
                     for part in root_path.parts
-                )
-
-                if should_skip:
+                ):
                     continue
 
-                # Check depth limits
                 if root_path != self.root_dir:
                     rel_path = str(root_path.relative_to(self.root_dir)).replace(
                         "\\", "/"
                     )
+                    should_skip = False
 
-                    for pattern, depth in depth_limits.items():
-                        if rel_path.startswith(pattern):
-                            remaining_path = rel_path[len(pattern) :].strip("/")
-                            current_depth = (
-                                len(remaining_path.split("/")) if remaining_path else 0
-                            )
-                            if current_depth > depth:
-                                should_skip = True
-                                break
+                    path_parts = rel_path.split("/")
+                    current_path = ""
+                    matched_depth = None
+                    matched_prefix = ""
+
+                    # 尋找最符合的深度限制規則
+                    for part in path_parts:
+                        if current_path:
+                            current_path += "/"
+                        current_path += part
+
+                        if current_path in depth_limits:
+                            matched_depth = depth_limits[current_path]
+                            matched_prefix = current_path
+
+                    # 計算剩餘深度
+                    if matched_depth is not None:
+                        remaining_path = rel_path[len(matched_prefix) :].strip("/")
+                        current_depth = (
+                            len(remaining_path.split("/")) if remaining_path else 0
+                        )
+
+                        if current_depth > matched_depth:
+                            should_skip = True
 
                     if should_skip:
                         continue
@@ -108,18 +122,19 @@ class ReadmeGenerator:
 
     def _generate_toc(self, docs: List[Dict]) -> str:
         """Generate directory structure and module descriptions"""
-        if not docs:
-            return "## Directory Structure and Module Descriptions\n\n*No directory information available*"
+        if not docs or not self.config.directory["enable"]:
+            return ""
 
-        sections = ["# Directory Structure", ""]
-        project_name = self.root_dir.name  # Get the root directory name
-        sections.append(
-            f"* **{project_name}**"
-        )  # Use the root directory name as the top level
+        sections = [f"# {self.config.directory['title']}", ""]
+        if content := self.config.directory["content"]:
+            sections.extend([content, ""])
+
+        project_name = self.root_dir.name
+        sections.append(f"* **{project_name}**")
 
         for doc in docs:
             path = doc["path"].replace("\\", "/")
-            indent = "  " * (path.count("/") + 1)  # Increase indentation for sub-items
+            indent = "  " * (path.count("/") + 1)
 
             if doc["doc"]:
                 doc_text = doc["doc"].split("\n")[0].strip()
@@ -134,21 +149,16 @@ class ReadmeGenerator:
         try:
             sections = []
 
-            # Process all content blocks with h1 titles
             for section, block in self.config.content_blocks.items():
-                # Retrieve block content, which may be a string or dictionary
                 if isinstance(block, dict):
-                    title = block.get("title", section)  # Use title if provided
-                    content = block.get("content", "")  # Retrieve content
+                    title = block.get("title", section)
+                    content = block.get("content", "")
                 else:
                     title = section
                     content = block
 
-                sections.extend(
-                    [f"# {title}", "", content, ""]  # Use custom title or section name
-                )
+                sections.extend([f"# {title}", "", content, ""])
 
-            # Process environment variables
             env_vars = self._get_env_vars()
             if env_vars:
                 sections.extend(
@@ -165,17 +175,12 @@ class ReadmeGenerator:
                     ]
                 )
 
-            # Generate directory structure (always last)
             docs = self._find_init_files()
             if docs:
                 toc_content = self._generate_toc(docs)
-                toc_content = toc_content.replace(
-                    "## Directory Structure and Module Descriptions",
-                    "# Directory Structure",
-                )
-                sections.extend([toc_content, ""])
+                if toc_content:
+                    sections.extend([toc_content, ""])
 
-            # Add footer
             sections.extend(
                 ["---", "> This document was automatically generated by readgen."]
             )
@@ -185,17 +190,3 @@ class ReadmeGenerator:
         except Exception as e:
             print(f"Error generating README: {e}")
             return "Unable to generate README content. Please check the error message."
-
-
-def main():
-    try:
-        generator = ReadmeGenerator()
-        new_readme = generator.generate()
-
-        readme_path = paths.ROOT_PATH / "README.md"
-        with open(readme_path, "w", encoding="utf-8") as f:
-            f.write(new_readme)
-
-        print("README.md has been generated successfully!")
-    except Exception as e:
-        print(f"Failed to generate README.md: {e}")
