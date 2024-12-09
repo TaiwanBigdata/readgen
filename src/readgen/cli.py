@@ -1,4 +1,3 @@
-import os
 import sys
 import argparse
 from pathlib import Path
@@ -13,7 +12,17 @@ def main() -> Optional[int]:
         Optional[int]: 執行狀態碼，0 表示成功，1 表示失敗
     """
     parser = argparse.ArgumentParser(
-        description="在當前目錄產生 README.md 檔案", epilog="Example: readgen"
+        description="""
+在當前目錄產生 README.md 檔案。
+
+此工具會：
+1. 讀取 pyproject.toml 的專案資訊
+2. 讀取 readgen.toml 的自訂內容
+3. 掃描專案目錄結構
+4. 提取各資料夾的 docstring
+5. 產生標準化的 README.md
+        """,
+        epilog="Example: readgen -f -o README.md",
     )
 
     parser.add_argument(
