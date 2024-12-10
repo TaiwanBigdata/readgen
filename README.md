@@ -1,5 +1,7 @@
-# ReadGen (tbi-readgen 0.0.6)
+# ReadGen
+### tbi-readgen (0.0.7)
 A simple yet powerful Python project README.md generator.
+
 # Features
 1. Read project information from pyproject.toml
 2. Read custom content from readgen.toml
@@ -65,10 +67,18 @@ exclude_dirs = [".git", "venv", "__pycache__", ".venv", "env", "build", "dist"] 
 depth_limits = { "root" = 1, "root/mother" = 2 } # List the depth of directories, list all by default.
 ````
 
-# Compatibility
-Supports Python 3.12 and above
-Compatible with Windows, macOS, and Linux
+# Development
+### Setup
+```bash
+git clone https://github.com/yourusername/gcp-secret-manager-cli.git
+cd gcp-secret-manager-cli
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+pip install -e ".[dev]"
+```
 
+# License
+This project is licensed under the MIT License.
 # Directory Structure
 
 * **readgen**

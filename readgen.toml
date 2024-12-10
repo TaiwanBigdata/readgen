@@ -1,6 +1,9 @@
 [ReadGen]
-title = "ReadGen (${project.name} ${project.version})"
-content = "A simple yet powerful Python project README.md generator."
+title = "ReadGen"
+content = """
+### ${project.name} (${project.version})
+A simple yet powerful Python project README.md generator.
+"""
 
 [Features]
 content = """
@@ -74,11 +77,20 @@ depth_limits = { "root" = 1, "root/mother" = 2 } # List the depth of directories
 ````
 """
 
-[Compatibility]
+[Development]
 content = """
-Supports Python 3.12 and above
-Compatible with Windows, macOS, and Linux
+### Setup
+```bash
+git clone https://github.com/yourusername/gcp-secret-manager-cli.git
+cd gcp-secret-manager-cli
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+pip install -e ".[dev]"
+```
 """
+
+[License]
+content = "This project is licensed under the ${project.license} License."
 
 
 [directory]
