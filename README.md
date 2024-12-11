@@ -70,11 +70,11 @@ depth_limits = { "root" = 1, "root/mother" = 2 } # List the depth of directories
 # Development
 ### Setup
 ```bash
-git clone https://github.com/yourusername/gcp-secret-manager-cli.git
-cd gcp-secret-manager-cli
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-pip install -e ".[dev]"
+git clone https://github.com/TaiwanBigdata/readgen.git
+cd readgen
+python -m venv env
+source env/bin/activate  # Linux/Mac
+pip install -e .
 ```
 
 # License
