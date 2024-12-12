@@ -120,7 +120,20 @@ class ReadmeGenerator:
             print(f"Error in _find_init_files: {e}")
             return []
 
-    def _generate_toc(self, path, prefix="", show_files=False):
+    def _read_file_docstring(self, file_path: Path) -> Optional[str]:
+        """Read docstring from a Python file"""
+        try:
+            if file_path.suffix == ".py":
+                with open(file_path, "r", encoding="utf-8") as f:
+                    first_line = f.readline().strip()
+                    if first_line.startswith('"""') or first_line.startswith("'''"):
+                        return first_line.strip("\"\"\"'''").strip()
+                    return None
+        except Exception as e:
+            print(f"Error reading {file_path}: {e}")
+        return None
+
+    def _generate_toc(self, path, prefix="", show_files=True):
         """Generate directory tree structure with complete vertical connectors
 
         Args:
@@ -130,7 +143,8 @@ class ReadmeGenerator:
         """
         entries = sorted(os.scandir(path), key=lambda e: e.name)
         exclude_dirs = self.config.directory.get("exclude_dirs", [])
-        show_files = self.config.directory.get("show_files", False)
+        show_files = self.config.directory.get("show_files", True)
+        show_docstrings = self.config.directory.get("show_docstrings", True)
 
         # Filter conditions
         entries = [
@@ -146,8 +160,16 @@ class ReadmeGenerator:
             is_last = idx == len(entries) - 1
             connector = "└──" if is_last else "├──"
 
-            # If it's a directory, add "/"
-            name = f"{entry.name}/" if entry.is_dir() else entry.name
+            if entry.is_file() and show_docstrings:
+                docstring = self._read_file_docstring(Path(entry.path))
+                if docstring:
+                    name = f"{entry.name} # {docstring}"
+                else:
+                    name = entry.name
+            else:
+                # If it's a directory, add "/"
+                name = f"{entry.name}/" if entry.is_dir() else entry.name
+
             tree_lines.append(f"{prefix}{connector} {name}")
 
             if entry.is_dir():

@@ -110,10 +110,11 @@ content = "This project is licensed under the ${project.license} License."
 
 
 [directory]
-enable = false
+enable = true
 exclude_dirs = [".git", "venv", "__pycache__", ".venv", "env", "build", "dist"]
 show_files = false
+show_docstrings = false
 
 [env]
-# enable = false
+enable = false
 env_file = ".env"

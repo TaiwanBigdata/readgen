@@ -95,11 +95,24 @@ pip install -e .
 
 # License
 This project is licensed under the MIT License.
-# Environment Variables
-| Variable Name | Description |
-| --- | --- |
-| PROJECT_ID | This is the project ID description |
-| APP_ENV | 這是環境變數的說明 |
+# Directory Structure
+```
+readgen/
+├── LICENSE
+├── README.md
+├── pyproject.toml
+├── readgen.toml
+├── requirements.txt
+└── src/
+    └── readgen/
+        ├── __init__.py
+        ├── cli.py
+        ├── config.py
+        ├── generator.py
+        └── utils/
+            ├── __init__.py # This folder is primarily used for storing commonly used utilities.
+            └── paths.py
+```
 
 
 ---

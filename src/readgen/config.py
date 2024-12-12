@@ -25,6 +25,7 @@ class ReadmeConfig:
             "exclude_dirs": set(),
             "depth_limits": {},
             "show_files": True,
+            "show_docstrings": True,
         }
         self.env = {"enable": True, "env_file": ".env"}
         self.project_data: Dict[str, Any] = {}
