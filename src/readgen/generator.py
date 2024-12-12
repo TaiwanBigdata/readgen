@@ -1,3 +1,6 @@
+# This is the main module for ReadGen.
+
+from fnmatch import fnmatch
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 import re
@@ -53,7 +56,7 @@ class ReadmeGenerator:
             print(f"Error reading {file_path}: {e}")
         return None
 
-    def _find_init_files(self) -> List[Dict]:
+    def _scan_project_structure(self) -> List[Dict]:
         try:
             init_files = []
             if not self.config.directory["enable"]:
@@ -126,54 +129,77 @@ class ReadmeGenerator:
             if file_path.suffix == ".py":
                 with open(file_path, "r", encoding="utf-8") as f:
                     first_line = f.readline().strip()
-                    if first_line.startswith('"""') or first_line.startswith("'''"):
-                        return first_line.strip("\"\"\"'''").strip()
-                    return None
+                    if first_line.startswith("#"):
+                        return first_line[1:].strip()
         except Exception as e:
             print(f"Error reading {file_path}: {e}")
         return None
 
-    def _generate_toc(self, path, prefix="", show_files=True):
-        """Generate directory tree structure with complete vertical connectors
-
-        Args:
-            path: Path to generate structure for
-            prefix: Indentation prefix characters
-            show_files: Whether to show files, default is False to show only directories
-        """
+    def _generate_toc(self, path, prefix="", show_files=False):
+        """Generate directory tree structure with aligned comments"""
         entries = sorted(os.scandir(path), key=lambda e: e.name)
-        exclude_dirs = self.config.directory.get("exclude_dirs", [])
-        show_files = self.config.directory.get("show_files", True)
-        show_docstrings = self.config.directory.get("show_docstrings", True)
+        exclude_dirs = self.config.directory.get("exclude_dirs", set())
+        exclude_files = self.config.directory.get("exclude_files", set())
+        show_files = self.config.directory.get("show_files", False)
+        show_comments = self.config.directory.get("show_comments", True)
 
-        # Filter conditions
+        # Filter the items to display, excluding `__init__.py`.
         entries = [
             e
             for e in entries
             if (show_files or e.is_dir())
-            and not e.name.startswith(".")
-            and not any(exclude in e.path for exclude in exclude_dirs)
+            and not (
+                e.is_dir() and any(fnmatch(e.name, pattern) for pattern in exclude_dirs)
+            )
+            and not (
+                e.is_file()
+                and any(fnmatch(e.name, pattern) for pattern in exclude_files)
+            )
+            and e.name != "__init__.py"  # Exclude `__init__.py`.
         ]
+
+        # Calculate the longest item name (including the "/" symbol for directories).
+        max_length = (
+            max(
+                len(prefix + "└── " + e.name + ("/" if e.is_dir() else ""))
+                for e in entries
+            )
+            if entries
+            else 0
+        )
 
         tree_lines = []
         for idx, entry in enumerate(entries):
             is_last = idx == len(entries) - 1
             connector = "└──" if is_last else "├──"
 
-            if entry.is_file() and show_docstrings:
-                docstring = self._read_file_docstring(Path(entry.path))
-                if docstring:
-                    name = f"{entry.name} # {docstring}"
-                else:
-                    name = entry.name
+            # Prepare the filenames.
+            name = f"{entry.name}/" if entry.is_dir() else entry.name
+
+            # Get comments.
+            comment = None
+            if show_comments:
+                if entry.is_dir():
+                    init_path = Path(entry.path) / "__init__.py"
+                    if init_path.exists():
+                        comment = self._read_file_docstring(init_path)
+                elif entry.is_file() and entry.name.endswith(".py"):
+                    comment = self._read_file_docstring(Path(entry.path))
+
+            # Calculate the full length of the current line.
+            current_line_length = len(prefix + connector + " " + name)
+
+            # Combine output lines to ensure comments are aligned.
+            if comment:
+                padding = " " * (max_length - current_line_length)
+                line = f"{prefix}{connector} {name}{padding} # {comment}"
             else:
-                # If it's a directory, add "/"
-                name = f"{entry.name}/" if entry.is_dir() else entry.name
+                line = f"{prefix}{connector} {name}"
 
-            tree_lines.append(f"{prefix}{connector} {name}")
+            tree_lines.append(line)
 
+            # Recursively process subdirectories.
             if entry.is_dir():
-                # If it's the last item, the new indentation doesn't need a vertical line
                 extension = "    " if is_last else "│   "
                 tree_lines.extend(
                     self._generate_toc(entry.path, prefix + extension, show_files)
@@ -198,9 +224,12 @@ class ReadmeGenerator:
 
             env_vars = self._get_env_vars()
             if env_vars and self.config.env["enable"]:
+                env_title = self.config.env.get("title", "Environment Variables")
+                env_content = self.config.env.get("content", "")
                 sections.extend(
                     [
-                        "# Environment Variables",
+                        f"# {env_title}",
+                        env_content,
                         "",
                         "| Variable Name | Description |",
                         "| --- | --- |",
@@ -212,11 +241,15 @@ class ReadmeGenerator:
                     ]
                 )
 
-            docs = self._find_init_files()
-            if docs:
-                # 產生樹狀結構
+            project_structure = self._scan_project_structure()
+            if project_structure and self.config.directory["enable"]:
+                directory_title = self.config.directory.get(
+                    "title", "Directory Structure"
+                )
+                directory_content = self.config.directory.get("content", "")
                 tree_content = [
-                    f"# {self.config.directory['title']}",
+                    f"# {directory_title}",
+                    directory_content,
                     "",
                     "```",
                     f"{self.root_dir.name}/",

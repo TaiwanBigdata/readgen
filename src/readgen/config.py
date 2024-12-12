@@ -19,15 +19,21 @@ class ReadmeConfig:
         self.root_path = root_path
         self.content_blocks: Dict[str, str] = {}
         self.directory = {
-            "enable": True,
             "title": "Directory Structure",
             "content": "",
+            "enable": True,
             "exclude_dirs": set(),
+            "exclude_files": set(),
             "depth_limits": {},
             "show_files": True,
-            "show_docstrings": True,
+            "show_comments": True,
         }
-        self.env = {"enable": True, "env_file": ".env"}
+        self.env = {
+            "title": "Environment Variables",
+            "content": "",
+            "enable": True,
+            "env_file": ".env",
+        }
         self.project_data: Dict[str, Any] = {}
         self._load_configs()
 
@@ -99,6 +105,9 @@ class ReadmeConfig:
                 self.directory.update(directory_config)
                 self.directory["exclude_dirs"] = set(
                     directory_config.get("exclude_dirs", [])
+                )
+                self.directory["exclude_files"] = set(
+                    directory_config.get("exclude_files", [])
                 )
 
             # Handle env settings

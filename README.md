@@ -9,9 +9,17 @@ A simple yet powerful Python project README.md generator.
     - Support variable substitution from pyproject.toml
     - Configure directory structure display with depth control
     - Toggle directory section display
-3. Scan the project directory structure
-4. Extract docstrings from `__init__.py` files in each folder
+3. Scan and filter project structure
+    - Support glob patterns for excluding directories and files
+    - Flexible depth control for directory display
+    - Configurable file visibility
+4. Extract comments from Python files for documentation
+    - Read first-line comments for description
+    - Support aligned comment display in directory tree
 5. Generate a standardized README.md
+    - Consistent formatting
+    - Automatic section organization
+    - Customizable content blocks
 
 # Installation
 ```bash
@@ -30,7 +38,7 @@ $ readgen
 $ readgen -f
 ```
 
-## Project Configuration File
+## Configurable Project Information
 Create a `readgen.toml` file in the project root:
 ````toml
 [Title]
@@ -58,16 +66,22 @@ Examples of variables from pyproject.toml:
 - Use ${project.name} to get the project name
 """
 
+[License]
+content = "This project is licensed under the ${project.license} License."
+
 [directory] # `directory` is a built-in method and will not be listed.
-title = "Directory Structure" # You can customize block names to override the default "Directory Structure."
-content = "123"
-enable = false # Default is true. If `enable = false`, it won't list all directories or scan the init instructions.
-exclude_dirs = [".git", "venv", "__pycache__", ".venv", "env", "build", "dist"] # Exclude directories from scanning.
-depth_limits = { "root" = 1, "root/mother" = 2 } # List the depth of directories, list all by default.
-show_files = false # Default is true. Show files in the directory structure.
+title = "Directory Structure" # Block names are customizable, allowing you to override the default "Directory Structure."
+content = "The content displayed below the title."
+enable = true # Default is true. Show the directory structure.
+exclude_dirs = [".git", "env", "__pycache__", "build", "dist"] # Exclude directories from scanning.
+exclude_files = [".env*"] # Exclude files from scanning.
+show_files = true # Default is true. Show files in the directory structure.
+show_comments = true # Default is true. Show first-line comments in the directory structure.
 
 [env] # `env` is a built-in method and will not be listed.
-enable = false # Default is true. Show the environment variables in the project.
+title = "Environment Variables" # Block names are customizable, allowing you to override the default "Environment Variables."
+content = "The content displayed below the title."
+enable = false # Default is true. Show the environment with description from the .env file.
 env_file = ".env" # Default is ".env". The file to read the environment variables from.
 ````
 
@@ -82,6 +96,17 @@ APP_ENV=dev # Application runtime environment (dev/stage/prod)
 | PROJECT_ID | Project identification code used for service registration and resource management |
 | APP_ENV | Application runtime environment (dev/stage/prod) |
 
+### show_comments
+If `show_comments` is set to `true`, first-line comments with a `#` prefix in the directory structure will be displayed.
+```
+readgen/
+├── LICENSE
+└── src/
+    └── readgen/         # Comments from the `__init__.py` file will be displayed here.
+        ├── cli.py       # Comments with a `#` prefix at the beginning of the line will be displayed here.
+        ├── config.py
+        ...
+```
 
 # Development
 ### Setup
@@ -98,6 +123,7 @@ This project is licensed under the MIT License.
 # Directory Structure
 ```
 readgen/
+├── .gitignore
 ├── LICENSE
 ├── README.md
 ├── pyproject.toml
@@ -105,12 +131,10 @@ readgen/
 ├── requirements.txt
 └── src/
     └── readgen/
-        ├── __init__.py
-        ├── cli.py
+        ├── cli.py       # Handle command line interface (CLI) logic
         ├── config.py
-        ├── generator.py
-        └── utils/
-            ├── __init__.py # This folder is primarily used for storing commonly used utilities.
+        ├── generator.py # This is the main module for ReadGen.
+        └── utils/       # This folder is primarily used for storing commonly used utilities.
             └── paths.py
 ```
 
