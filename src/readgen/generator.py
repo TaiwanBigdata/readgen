@@ -17,7 +17,7 @@ class ReadmeGenerator:
     def _get_env_vars(self) -> List[Dict[str, str]]:
         """Retrieve environment variable descriptions from .env.example"""
         env_vars = []
-        env_path = self.root_dir / ".env.example"
+        env_path = self.root_dir / self.config.env["env_file"]
         if env_path.exists():
             try:
                 with open(env_path, "r", encoding="utf-8") as f:
@@ -30,7 +30,7 @@ class ReadmeGenerator:
                                 comment = line.split("#")[1].strip()
                             env_vars.append({"key": key, "description": comment})
             except Exception as e:
-                print(f"Error reading .env.example: {e}")
+                print(f"Error reading .env: {e}")
         return env_vars
 
     def _extract_docstring(self, content: str) -> Optional[str]:
@@ -82,7 +82,7 @@ class ReadmeGenerator:
                     matched_depth = None
                     matched_prefix = ""
 
-                    # 尋找最符合的深度限制規則
+                    # Find the most matching depth limit rule
                     for part in path_parts:
                         if current_path:
                             current_path += "/"
@@ -92,7 +92,7 @@ class ReadmeGenerator:
                             matched_depth = depth_limits[current_path]
                             matched_prefix = current_path
 
-                    # 計算剩餘深度
+                    # Calculate remaining depth
                     if matched_depth is not None:
                         remaining_path = rel_path[len(matched_prefix) :].strip("/")
                         current_depth = (
@@ -120,29 +120,44 @@ class ReadmeGenerator:
             print(f"Error in _find_init_files: {e}")
             return []
 
-    def _generate_toc(self, docs: List[Dict]) -> str:
-        """Generate directory structure and module descriptions"""
-        if not docs or not self.config.directory["enable"]:
-            return ""
+    def _generate_toc(self, path, prefix="", show_files=False):
+        """Generate directory tree structure with complete vertical connectors
 
-        sections = [f"# {self.config.directory['title']}", ""]
-        if content := self.config.directory["content"]:
-            sections.extend([content, ""])
+        Args:
+            path: Path to generate structure for
+            prefix: Indentation prefix characters
+            show_files: Whether to show files, default is False to show only directories
+        """
+        entries = sorted(os.scandir(path), key=lambda e: e.name)
+        exclude_dirs = self.config.directory.get("exclude_dirs", [])
+        show_files = self.config.directory.get("show_files", False)
 
-        project_name = self.root_dir.name
-        sections.append(f"* **{project_name}**")
+        # Filter conditions
+        entries = [
+            e
+            for e in entries
+            if (show_files or e.is_dir())
+            and not e.name.startswith(".")
+            and not any(exclude in e.path for exclude in exclude_dirs)
+        ]
 
-        for doc in docs:
-            path = doc["path"].replace("\\", "/")
-            indent = "  " * (path.count("/") + 1)
+        tree_lines = []
+        for idx, entry in enumerate(entries):
+            is_last = idx == len(entries) - 1
+            connector = "└──" if is_last else "├──"
 
-            if doc["doc"]:
-                doc_text = doc["doc"].split("\n")[0].strip()
-                sections.append(f"{indent}* **{path}**: {doc_text}")
-            else:
-                sections.append(f"{indent}* **{path}**")
+            # If it's a directory, add "/"
+            name = f"{entry.name}/" if entry.is_dir() else entry.name
+            tree_lines.append(f"{prefix}{connector} {name}")
 
-        return "\n".join(sections)
+            if entry.is_dir():
+                # If it's the last item, the new indentation doesn't need a vertical line
+                extension = "    " if is_last else "│   "
+                tree_lines.extend(
+                    self._generate_toc(entry.path, prefix + extension, show_files)
+                )
+
+        return tree_lines
 
     def generate(self) -> str:
         """Generate the complete README content"""
@@ -160,7 +175,7 @@ class ReadmeGenerator:
                 sections.extend([f"# {title}", "", content, ""])
 
             env_vars = self._get_env_vars()
-            if env_vars:
+            if env_vars and self.config.env["enable"]:
                 sections.extend(
                     [
                         "# Environment Variables",
@@ -177,12 +192,20 @@ class ReadmeGenerator:
 
             docs = self._find_init_files()
             if docs:
-                toc_content = self._generate_toc(docs)
-                if toc_content:
-                    sections.extend([toc_content, ""])
+                # 產生樹狀結構
+                tree_content = [
+                    f"# {self.config.directory['title']}",
+                    "",
+                    "```",
+                    f"{self.root_dir.name}/",
+                    *self._generate_toc(self.root_dir),
+                    "```",
+                    "",
+                ]
+                sections.extend(tree_content)
 
             sections.extend(
-                ["---", "> This document was automatically generated by ReadGen."]
+                ["\n", "---", "> This document was automatically generated by ReadGen."]
             )
 
             return "\n".join(filter(None, sections))

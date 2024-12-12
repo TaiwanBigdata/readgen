@@ -31,7 +31,6 @@ $ pipx install tbi-readgen
 
 [Usage]
 content = """
-
 ## CLI
 ```bash
 $ readgen
@@ -68,14 +67,30 @@ Examples of variables from pyproject.toml:
 - Use \\${project.name} to get the project name
 \"\"\"
 
-
 [directory] # `directory` is a built-in method and will not be listed.
 title = "Directory Structure" # You can customize block names to override the default "Directory Structure."
 content = "123"
-enable = true # If `enable = false`, it won't list all directories or scan the init instructions.
+enable = false # Default is true. If `enable = false`, it won't list all directories or scan the init instructions.
 exclude_dirs = [".git", "venv", "__pycache__", ".venv", "env", "build", "dist"] # Exclude directories from scanning.
 depth_limits = { "root" = 1, "root/mother" = 2 } # List the depth of directories, list all by default.
+show_files = false # Default is true. Show files in the directory structure.
+
+[env] # `env` is a built-in method and will not be listed.
+enable = false # Default is true. Show the environment variables in the project.
+env_file = ".env" # Default is ".env". The file to read the environment variables from.
 ````
+
+### .env file
+If `.env` variables include comments, they will follow this format:
+```sh
+PROJECT_ID=tbi-readgen # Project identification code used for service registration and resource management
+APP_ENV=dev # Application runtime environment (dev/stage/prod)
+```
+| Variable Name | Description |
+| --- | --- |
+| PROJECT_ID | Project identification code used for service registration and resource management |
+| APP_ENV | Application runtime environment (dev/stage/prod) |
+
 """
 
 [Development]
@@ -95,5 +110,10 @@ content = "This project is licensed under the ${project.license} License."
 
 
 [directory]
-enable = true
+enable = false
 exclude_dirs = [".git", "venv", "__pycache__", ".venv", "env", "build", "dist"]
+show_files = false
+
+[env]
+# enable = false
+env_file = ".env"

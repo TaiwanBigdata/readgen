@@ -24,7 +24,9 @@ class ReadmeConfig:
             "content": "",
             "exclude_dirs": set(),
             "depth_limits": {},
+            "show_files": True,
         }
+        self.env = {"enable": True, "env_file": ".env"}
         self.project_data: Dict[str, Any] = {}
         self._load_configs()
 
@@ -97,6 +99,10 @@ class ReadmeConfig:
                 self.directory["exclude_dirs"] = set(
                     directory_config.get("exclude_dirs", [])
                 )
+
+            # Handle env settings
+            if env_config := config.pop("env", None):
+                self.env.update(env_config)
 
             # Handle content blocks
             self.content_blocks = {}
