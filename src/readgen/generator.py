@@ -2,7 +2,7 @@
 
 from fnmatch import fnmatch
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Set
 import re
 import os
 from readgen.utils import paths
@@ -16,6 +16,48 @@ class ReadmeGenerator:
         self.root_dir = paths.ROOT_PATH
         self.config = ReadmeConfig(self.root_dir)
         self.doc_pattern = re.compile(r'"""(.*?)"""', re.DOTALL)
+
+    def _is_path_excluded(self, current_path: Path, exclude_patterns: Set[str]) -> bool:
+        """Check if the path should be excluded based on the exclude patterns.
+
+        Supports three types of pattern matching:
+        1. Full path matching (e.g., 'src/readgen/utils')
+        2. Directory name matching (e.g., 'utils')
+        3. Path pattern matching (e.g., 'src/*/utils')
+
+        Args:
+            current_path: Path to check
+            exclude_patterns: Set of exclude patterns
+
+        Returns:
+            bool: True if the path should be excluded
+        """
+        rel_path = current_path.relative_to(self.root_dir)
+        rel_path_str = str(rel_path).replace("\\", "/")
+
+        for pattern in exclude_patterns:
+            # Case 1: Full path matching
+            if fnmatch(rel_path_str, pattern):
+                return True
+
+            # Case 2: Directory name matching
+            if fnmatch(current_path.name, pattern):
+                return True
+
+            # Case 3: Path pattern matching (e.g., 'src/*/utils')
+            pattern_parts = pattern.split("/")
+            path_parts = rel_path_str.split("/")
+
+            if len(pattern_parts) <= len(path_parts):
+                matches = True
+                for pattern_part, path_part in zip(pattern_parts, path_parts):
+                    if not fnmatch(path_part, pattern_part):
+                        matches = False
+                        break
+                if matches:
+                    return True
+
+        return False
 
     def _get_env_vars(self) -> List[Dict[str, str]]:
         """Retrieve environment variable descriptions from .env.example"""
@@ -57,6 +99,7 @@ class ReadmeGenerator:
         return None
 
     def _scan_project_structure(self) -> List[Dict]:
+        """Scan project structure and return directory information"""
         try:
             init_files = []
             if not self.config.directory["enable"]:
@@ -69,20 +112,19 @@ class ReadmeGenerator:
             for root, dirs, files in os.walk(self.root_dir):
                 root_path = Path(root)
 
-                # Exclude hidden directories and specified exclude directories.
+                # Exclude hidden directories and directories matching exclude patterns
                 if any(
-                    part.startswith(".") or part in exclude_dirs
-                    for part in root_path.parts
-                ):
+                    part.startswith(".") for part in root_path.parts
+                ) or self._is_path_excluded(root_path, exclude_dirs):
+                    dirs.clear()  # Stop recursion
                     continue
 
-                # Check depth.
+                # Check depth
                 if root_path != self.root_dir:
-                    # Calculate the depth of the current directory.
                     current_depth = len(root_path.parts) - root_path_len
 
                     if max_depth is not None and current_depth > max_depth:
-                        dirs.clear()  # Stop recursion.
+                        dirs.clear()  # Stop recursion
                         continue
 
                     init_files.append(
@@ -94,7 +136,7 @@ class ReadmeGenerator:
                         }
                     )
 
-                # If the maximum depth is reached, do not recurse further.
+                # If the maximum depth is reached, do not recurse further
                 if (
                     max_depth is not None
                     and (len(root_path.parts) - root_path_len) >= max_depth
@@ -136,14 +178,16 @@ class ReadmeGenerator:
         max_depth = self.config.directory["max_depth"]
         root_path_len = len(self.root_dir.parts)
 
-        # Calculate the current depth.
-        current_depth = len(Path(path).parts) - root_path_len
+        current_path = Path(path)
 
-        # If the depth exceeds or equals the maximum, stop further traversal.
+        # Calculate the current depth
+        current_depth = len(current_path.parts) - root_path_len
+
+        # If the depth exceeds or equals the maximum, stop further traversal
         if max_depth is not None and current_depth >= max_depth:
             return []
 
-        # Filter items.
+        # Filter items
         entries = [
             e
             for e in entries
@@ -151,7 +195,7 @@ class ReadmeGenerator:
             and not (
                 e.is_dir()
                 and (
-                    any(fnmatch(e.name, pattern) for pattern in exclude_dirs)
+                    self._is_path_excluded(Path(e.path), exclude_dirs)
                     or e.name.startswith(".")
                 )
             )
@@ -164,7 +208,7 @@ class ReadmeGenerator:
             )
         ]
 
-        # Calculate the longest item name (including the "/" for directories).
+        # The rest of the method remains unchanged...
         max_length = (
             max(
                 len(prefix + "└── " + e.name + ("/" if e.is_dir() else ""))
@@ -179,10 +223,10 @@ class ReadmeGenerator:
             is_last = idx == len(entries) - 1
             connector = "└──" if is_last else "├──"
 
-            # Prepare filenames.
+            # Prepare filenames
             name = f"{entry.name}/" if entry.is_dir() else entry.name
 
-            # Get comments.
+            # Get comments
             comment = None
             if show_comments:
                 if entry.is_dir():
@@ -192,10 +236,10 @@ class ReadmeGenerator:
                 elif entry.is_file() and entry.name.endswith(".py"):
                     comment = self._read_file_docstring(Path(entry.path))
 
-            # Calculate the full length of the current line.
+            # Calculate the full length of the current line
             current_line_length = len(prefix + connector + " " + name)
 
-            # Assemble the output line, ensuring comments are aligned.
+            # Assemble the output line, ensuring comments are aligned
             if comment:
                 padding = " " * (max_length - current_line_length)
                 line = f"{prefix}{connector} {name}{padding} # {comment}"
@@ -204,7 +248,7 @@ class ReadmeGenerator:
 
             tree_lines.append(line)
 
-            # Recursively process subdirectories, but check the depth first.
+            # Recursively process subdirectories, but check the depth first
             if entry.is_dir():
                 next_depth = len(Path(entry.path).parts) - root_path_len
                 if max_depth is None or next_depth < max_depth:
