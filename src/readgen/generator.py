@@ -63,52 +63,43 @@ class ReadmeGenerator:
                 return []
 
             exclude_dirs = self.config.directory["exclude_dirs"]
-            depth_limits = self.config.directory["depth_limits"]
+            max_depth = self.config.directory["max_depth"]
+            root_path_len = len(self.root_dir.parts)
 
             for root, dirs, files in os.walk(self.root_dir):
                 root_path = Path(root)
 
+                # Exclude hidden directories and specified exclude directories.
                 if any(
                     part.startswith(".") or part in exclude_dirs
                     for part in root_path.parts
                 ):
                     continue
 
+                # Check depth.
                 if root_path != self.root_dir:
-                    rel_path = str(root_path.relative_to(self.root_dir)).replace(
-                        "\\", "/"
-                    )
-                    should_skip = False
+                    # Calculate the depth of the current directory.
+                    current_depth = len(root_path.parts) - root_path_len
 
-                    path_parts = rel_path.split("/")
-                    current_path = ""
-                    matched_depth = None
-                    matched_prefix = ""
-
-                    # Find the most matching depth limit rule
-                    for part in path_parts:
-                        if current_path:
-                            current_path += "/"
-                        current_path += part
-
-                        if current_path in depth_limits:
-                            matched_depth = depth_limits[current_path]
-                            matched_prefix = current_path
-
-                    # Calculate remaining depth
-                    if matched_depth is not None:
-                        remaining_path = rel_path[len(matched_prefix) :].strip("/")
-                        current_depth = (
-                            len(remaining_path.split("/")) if remaining_path else 0
-                        )
-
-                        if current_depth > matched_depth:
-                            should_skip = True
-
-                    if should_skip:
+                    if max_depth is not None and current_depth > max_depth:
+                        dirs.clear()  # Stop recursion.
                         continue
 
-                    init_files.append({"path": rel_path, "doc": ""})
+                    init_files.append(
+                        {
+                            "path": str(root_path.relative_to(self.root_dir)).replace(
+                                "\\", "/"
+                            ),
+                            "doc": "",
+                        }
+                    )
+
+                # If the maximum depth is reached, do not recurse further.
+                if (
+                    max_depth is not None
+                    and (len(root_path.parts) - root_path_len) >= max_depth
+                ):
+                    dirs.clear()
 
                 if "__init__.py" in files:
                     file_path = root_path / "__init__.py"
@@ -120,7 +111,7 @@ class ReadmeGenerator:
 
             return sorted(init_files, key=lambda x: x["path"])
         except Exception as e:
-            print(f"Error in _find_init_files: {e}")
+            print(f"Error in _scan_project_structure: {e}")
             return []
 
     def _read_file_docstring(self, file_path: Path) -> Optional[str]:
@@ -138,27 +129,42 @@ class ReadmeGenerator:
     def _generate_toc(self, path, prefix="", show_files=False):
         """Generate directory tree structure with aligned comments"""
         entries = sorted(os.scandir(path), key=lambda e: e.name)
-        exclude_dirs = self.config.directory.get("exclude_dirs", set())
-        exclude_files = self.config.directory.get("exclude_files", set())
-        show_files = self.config.directory.get("show_files", False)
-        show_comments = self.config.directory.get("show_comments", True)
+        exclude_dirs = self.config.directory["exclude_dirs"]
+        exclude_files = self.config.directory["exclude_files"]
+        show_files = self.config.directory["show_files"]
+        show_comments = self.config.directory["show_comments"]
+        max_depth = self.config.directory["max_depth"]
+        root_path_len = len(self.root_dir.parts)
 
-        # Filter the items to display, excluding `__init__.py`.
+        # Calculate the current depth.
+        current_depth = len(Path(path).parts) - root_path_len
+
+        # If the depth exceeds or equals the maximum, stop further traversal.
+        if max_depth is not None and current_depth >= max_depth:
+            return []
+
+        # Filter items.
         entries = [
             e
             for e in entries
             if (show_files or e.is_dir())
             and not (
-                e.is_dir() and any(fnmatch(e.name, pattern) for pattern in exclude_dirs)
+                e.is_dir()
+                and (
+                    any(fnmatch(e.name, pattern) for pattern in exclude_dirs)
+                    or e.name.startswith(".")
+                )
             )
             and not (
                 e.is_file()
-                and any(fnmatch(e.name, pattern) for pattern in exclude_files)
+                and (
+                    any(fnmatch(e.name, pattern) for pattern in exclude_files)
+                    or e.name == "__init__.py"
+                )
             )
-            and e.name != "__init__.py"  # Exclude `__init__.py`.
         ]
 
-        # Calculate the longest item name (including the "/" symbol for directories).
+        # Calculate the longest item name (including the "/" for directories).
         max_length = (
             max(
                 len(prefix + "└── " + e.name + ("/" if e.is_dir() else ""))
@@ -173,7 +179,7 @@ class ReadmeGenerator:
             is_last = idx == len(entries) - 1
             connector = "└──" if is_last else "├──"
 
-            # Prepare the filenames.
+            # Prepare filenames.
             name = f"{entry.name}/" if entry.is_dir() else entry.name
 
             # Get comments.
@@ -189,7 +195,7 @@ class ReadmeGenerator:
             # Calculate the full length of the current line.
             current_line_length = len(prefix + connector + " " + name)
 
-            # Combine output lines to ensure comments are aligned.
+            # Assemble the output line, ensuring comments are aligned.
             if comment:
                 padding = " " * (max_length - current_line_length)
                 line = f"{prefix}{connector} {name}{padding} # {comment}"
@@ -198,12 +204,14 @@ class ReadmeGenerator:
 
             tree_lines.append(line)
 
-            # Recursively process subdirectories.
+            # Recursively process subdirectories, but check the depth first.
             if entry.is_dir():
-                extension = "    " if is_last else "│   "
-                tree_lines.extend(
-                    self._generate_toc(entry.path, prefix + extension, show_files)
-                )
+                next_depth = len(Path(entry.path).parts) - root_path_len
+                if max_depth is None or next_depth < max_depth:
+                    extension = "    " if is_last else "│   "
+                    tree_lines.extend(
+                        self._generate_toc(entry.path, prefix + extension, show_files)
+                    )
 
         return tree_lines
 

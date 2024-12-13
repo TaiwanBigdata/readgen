@@ -77,6 +77,7 @@ exclude_dirs = [".git", "env", "__pycache__", "build", "dist"] # Exclude directo
 exclude_files = [".env*"] # Exclude files from scanning.
 show_files = true # Default is true. Show files in the directory structure.
 show_comments = true # Default is true. Show first-line comments in the directory structure.
+max_depth = 1  # Optional. Specifies the maximum directory depth to display. Omit this line for no limit.
 
 [env] # `env` is a built-in method and will not be listed.
 title = "Environment Variables" # Block names are customizable, allowing you to override the default "Environment Variables."

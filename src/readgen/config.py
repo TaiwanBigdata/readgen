@@ -24,7 +24,7 @@ class ReadmeConfig:
             "enable": True,
             "exclude_dirs": set(),
             "exclude_files": set(),
-            "depth_limits": {},
+            "max_depth": None,
             "show_files": True,
             "show_comments": True,
         }
