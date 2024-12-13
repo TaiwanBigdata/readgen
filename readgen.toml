@@ -96,18 +96,34 @@ enable = false # Default is true. Show the environment with description from the
 env_file = ".env" # Default is ".env". The file to read the environment variables from.
 ````
 
-### .env file
-If `.env` variables include comments, they will follow this format:
-```sh
-PROJECT_ID=tbi-readgen # Project identification code used for service registration and resource management
-APP_ENV=dev # Application runtime environment (dev/stage/prod)
-```
-| Variable Name | Description |
-| --- | --- |
-| PROJECT_ID | Project identification code used for service registration and resource management |
-| APP_ENV | Application runtime environment (dev/stage/prod) |
+# .env file
 
-### show_comments
+If block comments are placed above `.env` variables, they should follow this format:
+```sh
+# Project identification code used for service registration and resource management
+PROJECT_ID=tbi-readgen
+PROJECT_NAME=ReadGen
+
+# Application runtime environment (dev/stage/prod)
+APP_ENV=dev
+APP_KEY=secret-key
+```
+will be displayed as:
+
+### Environment Variables
+
+Project identification code used for service registration and resource management
+
+- `PROJECT_ID`
+- `PROJECT_NAME`
+
+Application runtime environment (dev/stage/prod)
+
+- `APP_ENV`
+- `APP_KEY`
+
+# show_comments
+
 If `show_comments` is set to `true`, first-line comments with a `#` prefix in the directory structure will be displayed.
 ```
 readgen/
