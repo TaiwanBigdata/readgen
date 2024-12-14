@@ -1,6 +1,6 @@
 [project]
 name = "tbi-readgen"
-version = "0.0.12"
+version = "0.0.13"
 description = "A README generator for Python projects"
 readme = "README.md"
 requires-python = ">=3.12"

@@ -1,7 +1,6 @@
 from fnmatch import fnmatch
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Set
-import re
 import os
 from readgen.utils import paths
 from readgen.config import ReadmeConfig
@@ -13,7 +12,7 @@ class ReadmeGenerator:
     def __init__(self):
         self.root_dir = paths.ROOT_PATH
         self.config = ReadmeConfig(self.root_dir)
-        self.doc_pattern = re.compile(r'"""(.*?)"""', re.DOTALL)
+        self.max_tree_width = 0
 
     def _is_path_excluded(self, current_path: Path, exclude_patterns: Set[str]) -> bool:
         """Check if the path should be excluded based on the exclude patterns.
@@ -30,41 +29,78 @@ class ReadmeGenerator:
         Returns:
             bool: True if the path should be excluded
         """
-        rel_path = current_path.relative_to(self.root_dir)
-        rel_path_str = str(rel_path).replace("\\", "/")
+        try:
+            if not hasattr(current_path, "relative_to"):
+                current_path = Path(current_path)
+            rel_path = current_path.relative_to(self.root_dir)
+            rel_path_str = str(rel_path).replace("\\", "/")
 
-        for pattern in exclude_patterns:
-            # Case 1: Full path matching
-            if fnmatch(rel_path_str, pattern):
-                return True
-
-            # Case 2: Directory name matching
-            if fnmatch(current_path.name, pattern):
-                return True
-
-            # Case 3: Path pattern matching (e.g., 'src/*/utils')
-            pattern_parts = pattern.split("/")
-            path_parts = rel_path_str.split("/")
-
-            if len(pattern_parts) <= len(path_parts):
-                matches = True
-                for pattern_part, path_part in zip(pattern_parts, path_parts):
-                    if not fnmatch(path_part, pattern_part):
-                        matches = False
-                        break
-                if matches:
+            for pattern in exclude_patterns:
+                # Case 1: Full path matching
+                if fnmatch(rel_path_str, pattern):
                     return True
 
-        return False
+                # Case 2: Directory name matching
+                if fnmatch(current_path.name, pattern):
+                    return True
 
-    def _get_env_vars(self) -> List[Dict[str, Any]]:
-        """Retrieve environment variable descriptions from .env.example with category support
+                # Case 3: Path pattern matching (e.g., 'src/*/utils')
+                pattern_parts = pattern.split("/")
+                path_parts = rel_path_str.split("/")
+
+                if len(pattern_parts) <= len(path_parts):
+                    matches = True
+                    for pattern_part, path_part in zip(pattern_parts, path_parts):
+                        if not fnmatch(path_part, pattern_part):
+                            matches = False
+                            break
+                    if matches:
+                        return True
+
+            return False
+        except Exception as e:
+            print(f"Error in _is_path_excluded: {str(e)}")
+            return True
+
+    def _should_include_entry(
+        self, path: Path, is_dir: bool, show_files: bool = True
+    ) -> bool:
+        """Check if the entry should be included based on configuration rules"""
+        exclude_dirs = self.config.directory["exclude_dirs"]
+        exclude_files = self.config.directory["exclude_files"]
+
+        if is_dir:
+            return not (
+                self._is_path_excluded(path, exclude_dirs) or path.name.startswith(".")
+            )
+        return (
+            show_files
+            and not any(fnmatch(path.name, pattern) for pattern in exclude_files)
+            and path.name != "__init__.py"
+        )
+
+    def _read_file_first_comment(self, file_path: Path) -> Optional[str]:
+        """Read first line comment from a Python file
+
+        Args:
+            file_path: Path to the Python file
 
         Returns:
-            List[Dict[str, Any]]: List of dictionaries containing:
-                - category: Category name from block comment
-                - variables: List of variable names in this category
+            Optional[str]: First line comment if exists, otherwise None
         """
+        try:
+            if file_path.suffix == ".py":
+                with open(file_path, "r", encoding="utf-8") as f:
+                    first_line = f.readline().strip()
+                    if first_line.startswith("#"):
+                        return first_line[1:].strip()
+            return None
+        except Exception as e:
+            print(f"Error reading {file_path}: {str(e)}")
+            return None
+
+    def _get_env_vars(self) -> List[Dict[str, Any]]:
+        """Retrieve environment variable descriptions from .env.example with category support"""
         env_vars = []
         current_category = "General"  # Default category
         current_vars = []
@@ -110,195 +146,162 @@ class ReadmeGenerator:
 
         return env_vars
 
-    def _extract_docstring(self, content: str) -> Optional[str]:
-        """Extract docstring from __init__.py content"""
-        matches = self.doc_pattern.findall(content)
-        if matches:
-            return matches[0].strip()
-        return None
-
-    def _read_init_file(self, file_path: Path) -> Optional[Dict]:
-        """Read and parse the __init__.py file"""
-        try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                content = f.read()
-                docstring = self._extract_docstring(content)
-                if docstring:
-                    rel_path = str(file_path.parent.relative_to(self.root_dir))
-                    return {"path": rel_path, "doc": docstring}
-        except Exception as e:
-            print(f"Error reading {file_path}: {e}")
-        return None
-
     def _scan_project_structure(self) -> List[Dict]:
         """Scan project structure and return directory information"""
+        init_files = []
+        if not self.config.directory["enable"]:
+            return []
+
+        max_depth = self.config.directory["max_depth"]
+        root_path_len = len(self.root_dir.parts)
+
         try:
-            init_files = []
-            if not self.config.directory["enable"]:
-                return []
-
-            exclude_dirs = self.config.directory["exclude_dirs"]
-            max_depth = self.config.directory["max_depth"]
-            root_path_len = len(self.root_dir.parts)
-
             for root, dirs, files in os.walk(self.root_dir):
                 root_path = Path(root)
 
-                # Exclude hidden directories and directories matching exclude patterns
-                if any(
-                    part.startswith(".") for part in root_path.parts
-                ) or self._is_path_excluded(root_path, exclude_dirs):
-                    dirs.clear()  # Stop recursion
+                # Skip if directory should be excluded
+                if not self._should_include_entry(root_path, True):
+                    dirs.clear()
                     continue
+
+                # Remove excluded directories from dirs list to prevent walking into them
+                dirs[:] = [
+                    d for d in dirs if self._should_include_entry(root_path / d, True)
+                ]
 
                 # Check depth
                 if root_path != self.root_dir:
                     current_depth = len(root_path.parts) - root_path_len
 
                     if max_depth is not None and current_depth > max_depth:
-                        dirs.clear()  # Stop recursion
+                        dirs.clear()
                         continue
 
-                    init_files.append(
-                        {
-                            "path": str(root_path.relative_to(self.root_dir)).replace(
-                                "\\", "/"
-                            ),
-                            "doc": "",
-                        }
-                    )
+                    # Add directory to structure
+                    dir_info = {
+                        "path": str(root_path.relative_to(self.root_dir)).replace(
+                            "\\", "/"
+                        ),
+                        "doc": "",
+                    }
 
-                # If the maximum depth is reached, do not recurse further
+                    # Read comment if __init__.py exists
+                    if "__init__.py" in files:
+                        init_path = root_path / "__init__.py"
+                        comment = self._read_file_first_comment(init_path)
+                        if comment:
+                            dir_info["doc"] = comment
+
+                    init_files.append(dir_info)
+
+                # Stop recursion if max depth reached
                 if (
                     max_depth is not None
-                    and (len(root_path.parts) - root_path_len) >= max_depth
+                    and len(root_path.parts) - root_path_len >= max_depth
                 ):
                     dirs.clear()
 
-                if "__init__.py" in files:
-                    file_path = root_path / "__init__.py"
-                    if doc_info := self._read_init_file(file_path):
-                        for item in init_files:
-                            if item["path"] == doc_info["path"]:
-                                item["doc"] = doc_info["doc"]
-                                break
-
             return sorted(init_files, key=lambda x: x["path"])
+
         except Exception as e:
             print(f"Error in _scan_project_structure: {e}")
             return []
 
-    def _read_file_docstring(self, file_path: Path) -> Optional[str]:
-        """Read docstring from a Python file"""
-        try:
-            if file_path.suffix == ".py":
-                with open(file_path, "r", encoding="utf-8") as f:
-                    first_line = f.readline().strip()
-                    if first_line.startswith("#"):
-                        return first_line[1:].strip()
-        except Exception as e:
-            print(f"Error reading {file_path}: {e}")
-        return None
+    def _calculate_tree_width(self, path: str, prefix: str = "") -> int:
+        """Calculate the maximum width needed for the tree structure"""
+        entries = sorted(Path(path).iterdir(), key=lambda e: e.name)
+        max_width = 0
 
-    def _generate_toc(self, path, prefix="", show_files=False):
-        """Generate directory tree structure with aligned comments"""
-        entries = sorted(os.scandir(path), key=lambda e: e.name)
-        exclude_dirs = self.config.directory["exclude_dirs"]
-        exclude_files = self.config.directory["exclude_files"]
-        show_files = self.config.directory["show_files"]
-        show_comments = self.config.directory["show_comments"]
-        max_depth = self.config.directory["max_depth"]
-        root_path_len = len(self.root_dir.parts)
-
-        current_path = Path(path)
-
-        # Calculate the current depth
-        current_depth = len(current_path.parts) - root_path_len
-
-        # If the depth exceeds or equals the maximum, stop further traversal
-        if max_depth is not None and current_depth >= max_depth:
-            return []
-
-        # Filter items
-        entries = [
+        filtered_entries = [
             e
             for e in entries
-            if (show_files or e.is_dir())
-            and not (
-                e.is_dir()
-                and (
-                    self._is_path_excluded(Path(e.path), exclude_dirs)
-                    or e.name.startswith(".")
-                )
-            )
-            and not (
-                e.is_file()
-                and (
-                    any(fnmatch(e.name, pattern) for pattern in exclude_files)
-                    or e.name == "__init__.py"
-                )
+            if self._should_include_entry(
+                e, e.is_dir(), self.config.directory["show_files"]
             )
         ]
 
-        max_length = (
-            max(
-                len(prefix + "└── " + e.name + ("/" if e.is_dir() else ""))
-                for e in entries
-            )
-            if entries
-            else 0
-        )
+        for idx, entry in enumerate(filtered_entries):
+            is_last = idx == len(filtered_entries) - 1
+            connector = "└── " if is_last else "├── "
+            name = entry.name + ("/" if entry.is_dir() else "")
+            width = len(prefix + connector + name)
+            max_width = max(max_width, width)
+
+            if entry.is_dir():
+                next_prefix = prefix + ("    " if is_last else "│   ")
+                subtree_width = self._calculate_tree_width(str(entry), next_prefix)
+                max_width = max(max_width, subtree_width)
+
+        return max_width
+
+    def _generate_toc(
+        self, path: str, prefix: str = "", first_call: bool = True
+    ) -> List[str]:
+        """Generate directory tree structure with aligned comments"""
+        current_path = Path(path)
+        entries = sorted(current_path.iterdir(), key=lambda e: e.name)
+        show_comments = self.config.directory["show_comments"]
+        max_depth = self.config.directory["max_depth"]
+        root_path_len = len(self.root_dir.parts)
+        show_files = self.config.directory["show_files"]
+
+        # Calculate current depth and stop if max depth reached
+        current_depth = len(current_path.parts) - root_path_len
+        if max_depth is not None and current_depth >= max_depth:
+            return []
+
+        # Filter entries
+        filtered_entries = []
+        for entry in entries:
+            try:
+                if self._should_include_entry(entry, entry.is_dir(), show_files):
+                    filtered_entries.append(entry)
+            except Exception as e:
+                print(f"Error filtering entry {entry}: {str(e)}")
+                continue
+
+        # Calculate max width on first call
+        if first_call:
+            self.max_tree_width = self._calculate_tree_width(str(current_path))
 
         tree_lines = []
-        for idx, entry in enumerate(entries):
-            is_last = idx == len(entries) - 1
-            connector = "└──" if is_last else "├──"
+        for idx, entry in enumerate(filtered_entries):
+            try:
+                is_last = idx == len(filtered_entries) - 1
+                connector = "└──" if is_last else "├──"
+                name = f"{entry.name}/" if entry.is_dir() else entry.name
 
-            # Prepare filenames
-            name = f"{entry.name}/" if entry.is_dir() else entry.name
+                comment = None
+                if show_comments:
+                    if entry.is_dir():
+                        init_path = entry / "__init__.py"
+                        if init_path.exists():
+                            comment = self._read_file_first_comment(init_path)
+                    elif entry.name.endswith(".py"):
+                        comment = self._read_file_first_comment(entry)
 
-            # Get comments
-            comment = None
-            if show_comments:
+                base_line = f"{prefix}{connector} {name}"
+                if comment:
+                    padding = " " * (self.max_tree_width - len(base_line) + 2)
+                    line = f"{base_line}{padding}# {comment}"
+                else:
+                    line = base_line
+
+                tree_lines.append(line)
+
                 if entry.is_dir():
-                    init_path = Path(entry.path) / "__init__.py"
-                    if init_path.exists():
-                        comment = self._read_file_docstring(init_path)
-                elif entry.is_file() and entry.name.endswith(".py"):
-                    comment = self._read_file_docstring(Path(entry.path))
-
-            # Calculate the full length of the current line
-            current_line_length = len(prefix + connector + " " + name)
-
-            # Assemble the output line, ensuring comments are aligned
-            if comment:
-                padding = " " * (max_length - current_line_length)
-                line = f"{prefix}{connector} {name}{padding} # {comment}"
-            else:
-                line = f"{prefix}{connector} {name}"
-
-            tree_lines.append(line)
-
-            # Recursively process subdirectories, but check the depth first
-            if entry.is_dir():
-                next_depth = len(Path(entry.path).parts) - root_path_len
-                if max_depth is None or next_depth < max_depth:
                     extension = "    " if is_last else "│   "
                     tree_lines.extend(
-                        self._generate_toc(entry.path, prefix + extension, show_files)
+                        self._generate_toc(str(entry), prefix + extension, False)
                     )
+            except Exception as e:
+                print(f"Error processing entry {entry}: {str(e)}")
+                continue
 
         return tree_lines
 
     def _normalize_content(self, content: List[str]) -> List[str]:
-        """Normalize content by removing excessive empty lines within a section.
-
-        Args:
-            content: List of content lines
-
-        Returns:
-            List of normalized content lines with maximum one empty line within section
-        """
+        """Normalize content by removing excessive empty lines within a section"""
         # Remove empty lines from start and end
         while content and not content[0].strip():
             content.pop(0)
@@ -319,27 +322,16 @@ class ReadmeGenerator:
         return normalized
 
     def _format_env_vars(self, env_vars: List[Dict[str, Any]]) -> List[str]:
-        """Format environment variables section with proper spacing.
-
-        Args:
-            env_vars: List of environment variable categories
-
-        Returns:
-            List of formatted lines
-        """
+        """Format environment variables section with proper spacing"""
         formatted = []
 
         for idx, category in enumerate(env_vars):
             if category["variables"]:
                 if idx > 0:
-                    # Add empty line before each category except the first one
                     formatted.append("")
 
-                # Add category
                 formatted.append(category["category"])
                 formatted.append("")  # Empty line after category title
-
-                # Add variables as a list
                 formatted.extend([f"- `{var}`" for var in category["variables"]])
 
         return formatted
@@ -360,7 +352,7 @@ class ReadmeGenerator:
 
                 block_content = self._normalize_content([f"# {title}", "", content])
                 sections.extend(block_content)
-                sections.extend(["", ""])  # Add two empty lines between sections
+                sections.extend(["", ""])
 
             # Process environment variables section
             env_vars = self._get_env_vars()
@@ -368,16 +360,13 @@ class ReadmeGenerator:
                 env_title = self.config.env.get("title", "Environment Variables")
                 env_content = self.config.env.get("content", "")
 
-                # Build env section
                 env_section = [f"# {env_title}", ""]
                 if env_content:
                     env_section.extend([env_content, ""])
 
-                # Add formatted variables
                 env_section.extend(self._format_env_vars(env_vars))
-
                 sections.extend(self._normalize_content(env_section))
-                sections.extend(["", ""])  # Add two empty lines after env section
+                sections.extend(["", ""])
 
             # Process directory structure section
             project_structure = self._scan_project_structure()
@@ -399,7 +388,7 @@ class ReadmeGenerator:
                 ]
 
                 sections.extend(self._normalize_content(dir_section))
-                sections.extend(["", ""])  # Add two empty lines after directory section
+                sections.extend(["", ""])
 
             # Add footer
             footer = [
