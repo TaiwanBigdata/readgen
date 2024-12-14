@@ -9,6 +9,19 @@ from readgen.config import ReadmeConfig
 class ReadmeGenerator:
     """README Generator"""
 
+    # Supported file types for comments
+    SUPPORTED_EXTENSIONS = {
+        ".py",
+        ".toml",
+        ".yaml",
+        ".yml",
+        ".r",
+        ".sh",
+        ".bash",
+        ".zsh",
+        ".pl",
+    }
+
     def __init__(self):
         self.root_dir = paths.ROOT_PATH
         self.config = ReadmeConfig(self.root_dir)
@@ -80,23 +93,41 @@ class ReadmeGenerator:
         )
 
     def _read_file_first_comment(self, file_path: Path) -> Optional[str]:
-        """Read first line comment from a Python file
+        """Read first line comment from various file types
 
         Args:
-            file_path: Path to the Python file
+            file_path: Path to the file
 
         Returns:
             Optional[str]: First line comment if exists, otherwise None
         """
+        COMMENT_PATTERNS = {
+            ".py": "#",
+            ".toml": "#",
+            ".yaml": "#",
+            ".yml": "#",
+            ".r": "#",
+            ".sh": "#",
+            ".bash": "#",
+            ".zsh": "#",
+            ".pl": "#",
+        }
+
         try:
-            if file_path.suffix == ".py":
-                with open(file_path, "r", encoding="utf-8") as f:
-                    first_line = f.readline().strip()
-                    if first_line.startswith("#"):
-                        return first_line[1:].strip()
+            suffix = file_path.suffix.lower()
+
+            if suffix not in self.SUPPORTED_EXTENSIONS:
+                return None
+
+            with open(file_path, "r", encoding="utf-8") as f:
+                first_line = f.readline().strip()
+                if first_line.startswith("#"):
+                    return first_line[1:].strip()
+
             return None
+
         except Exception as e:
-            print(f"Error reading {file_path}: {str(e)}")
+            print(f"Error reading comment from {file_path}: {str(e)}")
             return None
 
     def _get_env_vars(self) -> List[Dict[str, Any]]:
@@ -277,7 +308,7 @@ class ReadmeGenerator:
                         init_path = entry / "__init__.py"
                         if init_path.exists():
                             comment = self._read_file_first_comment(init_path)
-                    elif entry.name.endswith(".py"):
+                    elif entry.suffix.lower() in self.SUPPORTED_EXTENSIONS:
                         comment = self._read_file_first_comment(entry)
 
                 base_line = f"{prefix}{connector} {name}"

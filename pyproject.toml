@@ -1,7 +1,7 @@
 [project]
 name = "tbi-readgen"
-version = "0.0.13"
-description = "A README generator for Python projects"
+version = "0.0.14"
+description = "A simple yet powerful Python project README.md generator."
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"
