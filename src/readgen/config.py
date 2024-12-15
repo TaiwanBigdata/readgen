@@ -22,8 +22,7 @@ class ReadmeConfig:
             "title": "Directory Structure",
             "content": "",
             "enable": True,
-            "exclude_dirs": set(),
-            "exclude_files": set(),
+            "exclude_patterns": set(),
             "max_depth": None,
             "show_files": True,
             "show_comments": True,
@@ -103,12 +102,12 @@ class ReadmeConfig:
             # Handle directory settings
             if directory_config := config.pop("directory", None):
                 self.directory.update(directory_config)
-                self.directory["exclude_dirs"] = set(
-                    directory_config.get("exclude_dirs", [])
-                )
-                self.directory["exclude_files"] = set(
-                    directory_config.get("exclude_files", [])
-                )
+
+                # Handle exclude patterns
+                if "exclude_patterns" in directory_config:
+                    self.directory["exclude_patterns"] = set(
+                        directory_config["exclude_patterns"]
+                    )
 
             # Handle env settings
             if env_config := config.pop("env", None):

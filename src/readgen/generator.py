@@ -4,6 +4,7 @@ from typing import Dict, List, Optional, Any, Set
 import os
 from readgen.utils import paths
 from readgen.config import ReadmeConfig
+from pathlib import Path
 
 
 class ReadmeGenerator:
@@ -28,68 +29,55 @@ class ReadmeGenerator:
         self.max_tree_width = 0
 
     def _is_path_excluded(self, current_path: Path, exclude_patterns: Set[str]) -> bool:
-        """Check if the path should be excluded based on the exclude patterns.
-
-        Supports three types of pattern matching:
-        1. Full path matching (e.g., 'src/readgen/utils')
-        2. Directory name matching (e.g., 'utils')
-        3. Path pattern matching (e.g., 'src/*/utils')
-
-        Args:
-            current_path: Path to check
-            exclude_patterns: Set of exclude patterns
-
-        Returns:
-            bool: True if the path should be excluded
+        """
+        Check if path should be excluded based on patterns
+        Handles:
+        - Recursive patterns (**/foo)
+        - Simple wildcards (*.pyc)
+        - Directory specific patterns (foo/)
         """
         try:
-            if not hasattr(current_path, "relative_to"):
+            if not isinstance(current_path, Path):
                 current_path = Path(current_path)
+
             rel_path = current_path.relative_to(self.root_dir)
             rel_path_str = str(rel_path).replace("\\", "/")
 
             for pattern in exclude_patterns:
-                # Case 1: Full path matching
-                if fnmatch(rel_path_str, pattern):
-                    return True
+                # Handle directory specific patterns
+                if pattern.endswith("/"):
+                    if not current_path.is_dir():
+                        continue
+                    pattern = pattern[:-1]
 
-                # Case 2: Directory name matching
-                if fnmatch(current_path.name, pattern):
-                    return True
-
-                # Case 3: Path pattern matching (e.g., 'src/*/utils')
-                pattern_parts = pattern.split("/")
-                path_parts = rel_path_str.split("/")
-
-                if len(pattern_parts) <= len(path_parts):
-                    matches = True
-                    for pattern_part, path_part in zip(pattern_parts, path_parts):
-                        if not fnmatch(path_part, pattern_part):
-                            matches = False
-                            break
-                    if matches:
+                # Handle recursive patterns
+                if "**/" in pattern:
+                    parts = pattern.split("**/")
+                    target = parts[-1].rstrip("/")
+                    if target in rel_path_str.split("/"):
                         return True
+                # Handle simple patterns
+                elif fnmatch(rel_path_str, pattern.rstrip("/")):
+                    return True
 
             return False
         except Exception as e:
-            print(f"Error in _is_path_excluded: {str(e)}")
+            print(f"Error in path exclusion for {current_path}: {e}")
             return True
 
     def _should_include_entry(
         self, path: Path, is_dir: bool, show_files: bool = True
     ) -> bool:
         """Check if the entry should be included based on configuration rules"""
-        exclude_dirs = self.config.directory["exclude_dirs"]
-        exclude_files = self.config.directory["exclude_files"]
+        # Always exclude __init__.py from file listing since its comments are shown at directory level
+        if path.name == "__init__.py":
+            return False
 
-        if is_dir:
-            return not (
-                self._is_path_excluded(path, exclude_dirs) or path.name.startswith(".")
-            )
-        return (
-            show_files
-            and not any(fnmatch(path.name, pattern) for pattern in exclude_files)
-            and path.name != "__init__.py"
+        if not show_files and not is_dir:
+            return False
+
+        return not self._is_path_excluded(
+            path, self.config.directory["exclude_patterns"]
         )
 
     def _read_file_first_comment(self, file_path: Path) -> Optional[str]:
@@ -301,17 +289,22 @@ class ReadmeGenerator:
                 is_last = idx == len(filtered_entries) - 1
                 connector = "└──" if is_last else "├──"
                 name = f"{entry.name}/" if entry.is_dir() else entry.name
+                base_line = f"{prefix}{connector} {name}"
 
                 comment = None
                 if show_comments:
                     if entry.is_dir():
+                        # 讀取目錄的 __init__.py 註釋
                         init_path = entry / "__init__.py"
                         if init_path.exists():
                             comment = self._read_file_first_comment(init_path)
-                    elif entry.suffix.lower() in self.SUPPORTED_EXTENSIONS:
+                    elif (
+                        entry.suffix.lower() in self.SUPPORTED_EXTENSIONS
+                        and entry.name != "__init__.py"
+                    ):
+                        # 只讀取非 __init__.py 檔案的註釋
                         comment = self._read_file_first_comment(entry)
 
-                base_line = f"{prefix}{connector} {name}"
                 if comment:
                     padding = " " * (self.max_tree_width - len(base_line) + 2)
                     line = f"{base_line}{padding}# {comment}"

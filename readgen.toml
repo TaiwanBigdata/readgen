@@ -158,7 +158,13 @@ env_file = ".env"
 
 [directory]
 enable = true
-exclude_dirs = [".git", "env", "__pycache__", "build", "dist"]
-exclude_files = [".env*"]
+exclude_patterns = [
+    ".git/",
+    "env/",
+    "**/__pycache__/",
+    "build/",
+    "dist/",
+    '.env*',
+]
 show_files = true
 show_comments = true
