@@ -83,11 +83,44 @@ content = "This project is licensed under the \\${project.license} License."
 title = "Directory Structure" # Block names are customizable, allowing you to override the default "Directory Structure."
 content = "The content displayed below the title."
 enable = true # Default is true. Show the directory structure.
-exclude_dirs = [".git", "env", "__pycache__", "build", "dist", "src/**/tests"] # Exclude directories from scanning. Supports wildcard patterns.
-exclude_files = [".env*"] # Exclude files from scanning. Supports wildcard patterns.
 show_files = true # Default is true. Show files in the directory structure.
 show_comments = true # Default is true. Show first-line comments in the directory structure.
 max_depth = 1  # Optional. Specifies the maximum directory depth to display. Omit this line for no limit.
+
+# Exclude patterns support various matching formats:
+# Note: __init__.py files are always excluded from the file listing since their 
+# comments are shown at the directory level. This behavior cannot be overridden.
+exclude_patterns = [
+    # 1. Directory specific patterns - must end with "/"
+    "env/",               # Matches only 'env' directory
+    "dist/",              # Matches only 'dist' directory
+    
+    # 2. Root-level file/directory matches
+    "env",                # Matches file/directory named 'env' in root
+    "file.txt",           # Matches specific file in root
+    
+    # 3. Recursive File extension wildcards
+    "**/*.py",            # Matches all Python files at any depth
+    "**/*.pyc",           # Matches all compiled Python files at any depth
+    
+    # 4. Recursive directory patterns
+    "**/__pycache__/",    # Matches __pycache__ dirs at any depth
+    "**/node_modules/",   # Matches node_modules dirs at any depth
+    
+    # 5. Path-specific depth patterns
+    "app/web/static/*/*", # Matches files two levels deep in static
+                          # e.g.: static/css/main.css - excluded
+                          #       static/css          - not excluded
+    
+    # Common excludes
+    "**/__pycache__/",
+    ".git/",
+    "build/",
+    ".env*",              # Matches all .env files (.env, .env.dev)
+    "*.egg-info/",
+    "dist/",
+    "env/",
+]
 
 [env] # `env` is a built-in method and will not be listed.
 title = "Environment Variables" # Block names are customizable, allowing you to override the default "Environment Variables."
@@ -129,7 +162,7 @@ If `show_comments` is set to `true`, first-line comments with a `#` prefix in th
 readgen/
 ├── LICENSE
 └── src/
-    └── readgen/         # Comments from the `__init__.py` file will be displayed here.
+    └── readgen/         # Comments from the `__init__.py` file will be displayed in the parent directory.
         ├── cli.py       # Comments with a `#` prefix at the beginning of the line will be displayed here.
         ├── config.py
         ...
