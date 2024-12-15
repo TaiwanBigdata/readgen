@@ -10,17 +10,21 @@ from pathlib import Path
 class ReadmeGenerator:
     """README Generator"""
 
-    # Supported file types for comments
-    SUPPORTED_EXTENSIONS = {
-        ".py",
-        ".toml",
-        ".yaml",
-        ".yml",
-        ".r",
-        ".sh",
-        ".bash",
-        ".zsh",
-        ".pl",
+    # File patterns that support comments
+    SUPPORTED_FILE_PATTERNS = {
+        # Extensions
+        "*.py",
+        "*.toml",
+        "*.yaml",
+        "*.yml",
+        "*.r",
+        "*.sh",
+        "*.bash",
+        "*.zsh",
+        "*.pl",
+        # Special files
+        "dockerfile*",
+        "makefile",
     }
 
     def __init__(self):
@@ -80,8 +84,24 @@ class ReadmeGenerator:
             path, self.config.directory["exclude_patterns"]
         )
 
+    def _is_supported_file(self, file_path: Path) -> bool:
+        """
+        Check if the file is supported for comment extraction using fnmatch
+
+        Args:
+            file_path: Path to check
+
+        Returns:
+            bool: True if file is supported
+        """
+        name_lower = file_path.name.lower()
+        return any(
+            fnmatch(name_lower, pattern.lower())
+            for pattern in self.SUPPORTED_FILE_PATTERNS
+        )
+
     def _read_file_first_comment(self, file_path: Path) -> Optional[str]:
-        """Read first line comment from various file types
+        """Read first line comment from supported files
 
         Args:
             file_path: Path to the file
@@ -89,28 +109,20 @@ class ReadmeGenerator:
         Returns:
             Optional[str]: First line comment if exists, otherwise None
         """
-        COMMENT_PATTERNS = {
-            ".py": "#",
-            ".toml": "#",
-            ".yaml": "#",
-            ".yml": "#",
-            ".r": "#",
-            ".sh": "#",
-            ".bash": "#",
-            ".zsh": "#",
-            ".pl": "#",
-        }
-
         try:
-            suffix = file_path.suffix.lower()
-
-            if suffix not in self.SUPPORTED_EXTENSIONS:
+            if not self._is_supported_file(file_path):
                 return None
 
             with open(file_path, "r", encoding="utf-8") as f:
-                first_line = f.readline().strip()
-                if first_line.startswith("#"):
-                    return first_line[1:].strip()
+                # Skip empty lines
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    if line.startswith("#"):
+                        return line[1:].strip()
+                    # If we find a non-comment line, stop searching
+                    break
 
             return None
 
@@ -294,15 +306,12 @@ class ReadmeGenerator:
                 comment = None
                 if show_comments:
                     if entry.is_dir():
-                        # 讀取目錄的 __init__.py 註釋
+                        # # Read comments from directory's __init__.py
                         init_path = entry / "__init__.py"
                         if init_path.exists():
                             comment = self._read_file_first_comment(init_path)
-                    elif (
-                        entry.suffix.lower() in self.SUPPORTED_EXTENSIONS
-                        and entry.name != "__init__.py"
-                    ):
-                        # 只讀取非 __init__.py 檔案的註釋
+                    elif entry.name != "__init__.py" and self._is_supported_file(entry):
+                        # Read comments for non-__init__.py supported files
                         comment = self._read_file_first_comment(entry)
 
                 if comment:

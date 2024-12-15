@@ -1,9 +1,9 @@
 [project]
 name = "tbi-readgen"
-version = "0.0.15"
+version = "0.0.16"
 description = "A simple yet powerful Python project README.md generator."
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.8"
 license = "MIT"
 authors = [{ name = "Albert Liu", email = "dreamerhyde@gmail.com" }]
 keywords = ["readme", "generator", 'markdown', "cli"]
