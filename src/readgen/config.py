@@ -1,6 +1,6 @@
 import re
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 import tomllib
 
 
@@ -18,6 +18,7 @@ class ReadmeConfig:
     def __init__(self, root_path: Path):
         self.root_path = root_path
         self.content_blocks: Dict[str, str] = {}
+        self.block_order: List[str] = []
         self.directory = {
             "title": "Directory Structure",
             "content": "",
@@ -98,6 +99,8 @@ class ReadmeConfig:
         try:
             with open(config_path, "rb") as f:
                 config = tomllib.load(f)
+
+            self.block_order = list(config.keys())
 
             # Handle directory settings
             if directory_config := config.pop("directory", None):

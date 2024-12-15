@@ -181,9 +181,6 @@ pip install -e .
 ```
 """
 
-[License]
-content = "This project is licensed under the ${project.license} License."
-
 
 [env]
 enable = false
@@ -201,3 +198,7 @@ exclude_patterns = [
 ]
 show_files = true
 show_comments = true
+
+
+[License]
+content = "This project is licensed under the ${project.license} License."

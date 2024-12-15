@@ -377,54 +377,57 @@ class ReadmeGenerator:
         try:
             sections = []
 
-            # Process content blocks
-            for section, block in self.config.content_blocks.items():
-                if isinstance(block, dict):
-                    title = block.get("title", section)
-                    content = block.get("content", "").strip()
-                else:
-                    title = section
-                    content = block.strip()
+            # Process all blocks in the order defined in toml file
+            for block_name in self.config.block_order:
+                if block_name == "directory" and self.config.directory["enable"]:
+                    # Handle directory structure block
+                    directory_title = self.config.directory.get(
+                        "title", "Directory Structure"
+                    )
+                    directory_content = self.config.directory.get("content", "")
 
-                block_content = self._normalize_content([f"# {title}", "", content])
-                sections.extend(block_content)
-                sections.extend(["", ""])
+                    dir_section = [
+                        f"# {directory_title}",
+                        "",
+                        directory_content,
+                        "",
+                        "```",
+                        f"{self.root_dir.name}/",
+                        *self._generate_toc(self.root_dir),
+                        "```",
+                    ]
+                    sections.extend(self._normalize_content(dir_section))
+                    sections.extend(["", ""])
 
-            # Process environment variables section
-            env_vars = self._get_env_vars()
-            if env_vars and self.config.env["enable"]:
-                env_title = self.config.env.get("title", "Environment Variables")
-                env_content = self.config.env.get("content", "")
+                elif block_name == "env" and self.config.env["enable"]:
+                    # Handle environment variables block
+                    env_vars = self._get_env_vars()
+                    if env_vars:
+                        env_title = self.config.env.get(
+                            "title", "Environment Variables"
+                        )
+                        env_content = self.config.env.get("content", "")
 
-                env_section = [f"# {env_title}", ""]
-                if env_content:
-                    env_section.extend([env_content, ""])
+                        env_section = [f"# {env_title}", ""]
+                        if env_content:
+                            env_section.extend([env_content, ""])
+                        env_section.extend(self._format_env_vars(env_vars))
+                        sections.extend(self._normalize_content(env_section))
+                        sections.extend(["", ""])
 
-                env_section.extend(self._format_env_vars(env_vars))
-                sections.extend(self._normalize_content(env_section))
-                sections.extend(["", ""])
+                elif block_name in self.config.content_blocks:
+                    # Handle regular content blocks
+                    block = self.config.content_blocks[block_name]
+                    if isinstance(block, dict):
+                        title = block.get("title", block_name)
+                        content = block.get("content", "").strip()
+                    else:
+                        title = block_name
+                        content = block.strip()
 
-            # Process directory structure section
-            project_structure = self._scan_project_structure()
-            if project_structure and self.config.directory["enable"]:
-                directory_title = self.config.directory.get(
-                    "title", "Directory Structure"
-                )
-                directory_content = self.config.directory.get("content", "")
-
-                dir_section = [
-                    f"# {directory_title}",
-                    "",
-                    directory_content,
-                    "",
-                    "```",
-                    f"{self.root_dir.name}/",
-                    *self._generate_toc(self.root_dir),
-                    "```",
-                ]
-
-                sections.extend(self._normalize_content(dir_section))
-                sections.extend(["", ""])
+                    block_content = self._normalize_content([f"# {title}", "", content])
+                    sections.extend(block_content)
+                    sections.extend(["", ""])
 
             # Add footer
             footer = [
