@@ -177,6 +177,10 @@ class ReadmeGenerator:
 
         return env_vars
 
+    def _sort_entries(self, entries: List[Path]) -> List[Path]:
+        """Sort entries VSCode style - directories first, then files"""
+        return sorted(entries, key=lambda e: (not e.is_dir(), e.name.lower()))
+
     def _scan_project_structure(self) -> List[Dict]:
         """Scan project structure and return directory information"""
         init_files = []
@@ -195,20 +199,18 @@ class ReadmeGenerator:
                     dirs.clear()
                     continue
 
-                # Remove excluded directories from dirs list to prevent walking into them
+                # Just filter directories, no need to sort here
                 dirs[:] = [
                     d for d in dirs if self._should_include_entry(root_path / d, True)
                 ]
 
-                # Check depth
                 if root_path != self.root_dir:
                     current_depth = len(root_path.parts) - root_path_len
-
                     if max_depth is not None and current_depth > max_depth:
                         dirs.clear()
                         continue
 
-                    # Add directory to structure
+                    # Add directory info
                     dir_info = {
                         "path": str(root_path.relative_to(self.root_dir)).replace(
                             "\\", "/"
@@ -216,7 +218,6 @@ class ReadmeGenerator:
                         "doc": "",
                     }
 
-                    # Read comment if __init__.py exists
                     if "__init__.py" in files:
                         init_path = root_path / "__init__.py"
                         comment = self._read_file_first_comment(init_path)
@@ -225,14 +226,16 @@ class ReadmeGenerator:
 
                     init_files.append(dir_info)
 
-                # Stop recursion if max depth reached
                 if (
                     max_depth is not None
                     and len(root_path.parts) - root_path_len >= max_depth
                 ):
                     dirs.clear()
 
-            return sorted(init_files, key=lambda x: x["path"])
+            # Final sort using _sort_entries
+            path_mapping = {self.root_dir / info["path"]: info for info in init_files}
+            sorted_paths = self._sort_entries(list(path_mapping.keys()))
+            return [path_mapping[path] for path in sorted_paths]
 
         except Exception as e:
             print(f"Error in _scan_project_structure: {e}")
@@ -240,7 +243,7 @@ class ReadmeGenerator:
 
     def _calculate_tree_width(self, path: str, prefix: str = "") -> int:
         """Calculate the maximum width needed for the tree structure"""
-        entries = sorted(Path(path).iterdir(), key=lambda e: e.name)
+        entries = self._sort_entries(list(Path(path).iterdir()))
         max_width = 0
 
         filtered_entries = [
@@ -270,7 +273,7 @@ class ReadmeGenerator:
     ) -> List[str]:
         """Generate directory tree structure with aligned comments"""
         current_path = Path(path)
-        entries = sorted(current_path.iterdir(), key=lambda e: e.name)
+        entries = self._sort_entries(list(current_path.iterdir()))
         show_comments = self.config.directory["show_comments"]
         max_depth = self.config.directory["max_depth"]
         root_path_len = len(self.root_dir.parts)
