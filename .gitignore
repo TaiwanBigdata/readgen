@@ -18,3 +18,6 @@ __pycache__
 .jupyter
 .local
 /jupyterlab/
+
+# ai
+.cursorrules

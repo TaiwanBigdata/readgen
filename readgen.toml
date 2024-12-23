@@ -31,10 +31,11 @@ content = """
 [Installation]
 content = """
 ```bash
-$ pip install tbi-readgen
-
 # Recommendation, as it can be used globally.
 $ pipx install tbi-readgen
+
+# If you don't use pipx, you can use the following command.
+$ pip install tbi-readgen
 ```
 """
 
@@ -42,10 +43,11 @@ $ pipx install tbi-readgen
 content = """
 ## CLI
 ```bash
-$ readgen
-
 # Overwrite README.md.
 $ readgen -f
+
+# Generate README.md without overwriting.
+$ readgen
 ```
 
 ## Configurable Project Information
@@ -195,6 +197,7 @@ exclude_patterns = [
     "build/",
     "dist/",
     '.env*',
+    ".cursorrules",
 ]
 show_files = true
 show_comments = true
