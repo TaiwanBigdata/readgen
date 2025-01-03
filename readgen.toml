@@ -33,9 +33,6 @@ content = """
 ```bash
 # Recommendation, as it can be used globally.
 $ pipx install tbi-readgen
-
-# If you don't use pipx, you can use the following command.
-$ pip install tbi-readgen
 ```
 """
 
@@ -191,13 +188,18 @@ env_file = ".env"
 [directory]
 enable = true
 exclude_patterns = [
+    ".cursorrules",
+    ".env*",
+    "**/.DS_Store",
     ".git/",
+    ".gitignore",
     "env/",
     "**/__pycache__/",
-    "build/",
-    "dist/",
-    '.env*',
-    ".cursorrules",
+    "*.egg-info/",
+    "jupyterlab",
+    "secrets",
+    "build",
+    "dist",
 ]
 show_files = true
 show_comments = true

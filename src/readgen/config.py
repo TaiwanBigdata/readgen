@@ -1,6 +1,6 @@
 import re
 from pathlib import Path
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Union
 import tomllib
 
 
@@ -43,15 +43,60 @@ class ReadmeConfig:
         self._load_readgen_config()
 
     def _read_project_file(self) -> Dict[str, Any]:
-        """Read pyproject.toml"""
+        """Read pyproject.toml with support for PEP 621 and setuptools>=61.0.0"""
         project_path = self.root_path / "pyproject.toml"
         if project_path.exists():
             try:
                 with open(project_path, "rb") as f:
-                    return tomllib.load(f)
+                    data = tomllib.load(f)
+
+                # Handle dynamic fields if present
+                project_data = data.get("project", {})
+                if "dynamic" in project_data:
+                    dynamic_fields = project_data["dynamic"]
+                    # For now we just acknowledge dynamic fields exist
+                    # Future: implement dynamic field resolution
+
+                # Handle dependencies
+                if "dependencies" in project_data:
+                    # Convert dependencies to a more readable format for README
+                    deps = project_data["dependencies"]
+                    if isinstance(deps, list):
+                        project_data["formatted_dependencies"] = "\n".join(
+                            f"- {dep}" for dep in deps
+                        )
+
+                # Handle optional dependencies
+                if "optional-dependencies" in project_data:
+                    opt_deps = project_data["optional-dependencies"]
+                    if isinstance(opt_deps, dict):
+                        formatted_opt_deps = {}
+                        for env, deps in opt_deps.items():
+                            formatted_opt_deps[env] = "\n".join(
+                                f"- {dep}" for dep in deps
+                            )
+                        project_data["formatted_optional_dependencies"] = (
+                            formatted_opt_deps
+                        )
+
+                return data
             except Exception as e:
                 print(f"Error reading pyproject.toml: {e}")
         return {}
+
+    def _format_author(self, author: Dict[str, str]) -> str:
+        """Format author information with optional email
+
+        Args:
+            author: Author dictionary with name and optional email
+        """
+        if not isinstance(author, dict) or "name" not in author:
+            return str(author)
+
+        parts = [author["name"]]
+        if email := author.get("email"):
+            parts.append(f"({email})")
+        return " ".join(parts)
 
     def _get_variable_value(self, var_path: str) -> str:
         """Retrieve variable value from project_data
@@ -74,6 +119,32 @@ class ReadmeConfig:
                     value = value[part]
                 else:
                     value = value.get(part, "")
+
+            # Format different value types
+            if isinstance(value, dict):
+                # Handle special cases
+                if "text" in value:  # For license and similar fields
+                    return value["text"]
+                if "name" in value:  # For single author and similar fields
+                    return self._format_author(value)
+                return ", ".join(f"{k}: {v}" for k, v in value.items())
+            elif isinstance(value, list):
+                # Format list as bullet points
+                if all(isinstance(item, str) for item in value):
+                    # Simple string list
+                    return "\n- " + "\n- ".join(value)
+                elif all(isinstance(item, dict) for item in value):
+                    # List of dictionaries (e.g., authors)
+                    formatted_items = []
+                    for item in value:
+                        if "name" in item:  # Author information
+                            formatted_items.append(self._format_author(item))
+                        else:
+                            formatted_items.append(
+                                ", ".join(f"{k}: {v}" for k, v in item.items())
+                            )
+                    return "\n- " + "\n- ".join(formatted_items)
+                return ", ".join(str(item) for item in value)
             return str(value)
         except Exception:
             return ""

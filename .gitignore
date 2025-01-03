@@ -1,23 +1,28 @@
-# environments
+# Development Environment
 .env
 .env.*
-__pycache__
-/dist/
-/build/
 /env/
 /venv/
+/dist/
+/build/
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg-info/*
+
+# Project Specific
 /app/test*.py
 /backups/
 /caches/
 /secrets/
 /models/
 
-# jupyter
+# Data Science & Jupyter
 .ipython
 .ipynb_checkpoints
 .jupyter
 .local
 /jupyterlab/
 
-# ai
+# IDE & Tools
 .cursorrules
