@@ -1,6 +1,6 @@
 [project]
 name = "tbi-readgen"
-version = "0.0.20"
+version = "0.0.21"
 description = "A simple yet powerful Python project README.md generator."
 readme = "README.md"
 requires-python = ">=3.8"
@@ -35,6 +35,7 @@ build-backend = "setuptools.build_meta"
 [project.scripts]
 readgen = "readgen.cli:main"
 
-[tool.setuptools]
-package-dir = { "" = "src" }
-packages = ["readgen"]
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["readgen*"]
+namespaces = false
